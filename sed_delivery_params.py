@@ -22,7 +22,7 @@ class SedDeliveryParams:
         self.slope()
         self.get_gamma_vals()
 
-    def slope(self):
+    def slope(self): # convolve 2d runs out of memory on large arrays...
         """
         Finds the slope using partial derivative method
         :param dem: path to a digital elevation raster

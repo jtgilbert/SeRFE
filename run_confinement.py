@@ -2,11 +2,11 @@
 import confinement
 
 # directory
-dir = '/home/jordan/Documents/Geoscience/GIS/Piru_SeRFE_data/'
+dir = 'data/'
 
 # Inputs - fill in
-network = dir + 'Piru_network.shp'
-valley = dir + 'Piru_valley.shp'
+network = dir + 'SC_network.shp'
+valley = dir + 'SC_VB.shp'
 
 # run confinement model
 inst = confinement.Confinement(network, valley, exag=0.1)

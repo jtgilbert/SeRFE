@@ -46,7 +46,7 @@ class Disturbances:
                 da = self.network.loc[segid[x], 'Drain_Area']
                 ds_segs = self.topo.find_all_ds(segid[x])
                 for y in range(len(ds_segs)):
-                    self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'Drain_Area'] - da
+                    self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
 
         if new_denude is not None:
             for x in range(len(segid)):
