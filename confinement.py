@@ -30,55 +30,69 @@ class Confinement:
         """
 
         channel = seg.buffer(buf_width)
-        dif = channel.difference(self.valley.loc[0, 'geometry'])
-        inters = channel.intersection(self.valley.loc[0, 'geometry'])
+        buf = seg.buffer(1000)
+        inters1 = self.valley.loc[0, 'geometry'].intersection(buf)
+        dif = channel.difference(inters1)
+        inters = channel.intersection(inters1)
 
-        if inters.type == 'MultiPolygon':
-            int_coords = []
-            for i in range(len(inters)):
-                for j in range(len(inters[i].exterior.xy[0])):
-                    int_coords_x = inters[i].exterior.xy[0][j]
-                    int_coords_y = inters[i].exterior.xy[1][j]
-                    int_coords.append([int_coords_x, int_coords_y])
-                    # print int_coords
-        elif inters.type == 'Polygon':
-            int_coords = np.zeros((len(inters.exterior.xy[0]), 2))
-            int_coords[:, 0] = inters.exterior.xy[0]
-            int_coords[:, 1] = inters.exterior.xy[1]
+        if inters.area == 0.:
+            return 1
+
         else:
-            int_coords = []
+            if inters.type == 'MultiPolygon':
+                int_coords = []
+                for i in range(len(inters)):
+                    for j in range(len(inters[i].exterior.xy[0])):
+                        int_coords_x = inters[i].exterior.xy[0][j]
+                        int_coords_y = inters[i].exterior.xy[1][j]
+                        int_coords.append([int_coords_x, int_coords_y])
+                        # print int_coords
+            elif inters.type == 'Polygon':
+                int_coords = []
+                for i in range(len(inters.exterior.xy[0])):
+                    int_coords_x = inters.exterior.xy[0][i]
+                    int_coords_y = inters.exterior.xy[1][i]
+                    int_coords.append([int_coords_x, int_coords_y])
+            else:
+                int_coords = []
 
-        if dif.type == 'MultiPolygon':
-            line_len = []
-            line_coords = []
-            for i in range(len(dif)):
-                for j in range(len(dif[i].exterior.xy[0])):
-                    dif_coords_x = dif[i].exterior.xy[0][j]
-                    dif_coords_y = dif[i].exterior.xy[1][j]
+            if dif.type == 'MultiPolygon':
+                line_len = []
+                for i in range(len(dif)):
+                    line_coords = []
+                    for j in range(len(dif[i].exterior.xy[0])):
+                        dif_coords_x = dif[i].exterior.xy[0][j]
+                        dif_coords_y = dif[i].exterior.xy[1][j]
+                        if [dif_coords_x, dif_coords_y] in int_coords:
+                            line_coords.append([dif_coords_x, dif_coords_y])
+                    if len(line_coords) > 1:
+                        line = LineString(line_coords)
+                        line_len.append(line.length)
+                    else:
+                        line_len = []
+            elif dif.type == 'Polygon':
+                line_len = []
+                line_coords = []
+                for y in range(len(dif.exterior.xy[0])):
+                    dif_coords_x = dif.exterior.xy[0][y]
+                    dif_coords_y = dif.exterior.xy[1][y]
                     if [dif_coords_x, dif_coords_y] in int_coords:
                         line_coords.append([dif_coords_x, dif_coords_y])
-                line = LineString(line_coords[1:len(line_coords)])
-                line_len.append(line.length)
-        elif dif.type == 'Polygon':
-            line_len = []
-            line_coords = []
-            for y in range(len(dif.exterior.xy[0])):
-                dif_coords_x = dif.exterior.xy[0][y]
-                dif_coords_y = dif.exterior.xy[1][y]
-                if [dif_coords_x, dif_coords_y] in int_coords:
-                    line_coords.append([dif_coords_x, dif_coords_y])
-            # print 'line_coords', len(line_coords)
-            line = LineString(line_coords[1:len(line_coords)])
-            line_len.append(line.length)
-        else:
-            line_len = []
+                # print 'line_coords', len(line_coords)
+                if len(line_coords) > 1:
+                    line = LineString(line_coords)
+                    line_len.append(line.length)
+                else:
+                    line_len = []
+            else:
+                line_len = []
 
-        if len(int_coords) == 0:
-            return 1.  # stream network and valley bottom misaligned
-        elif len(line_len) == 0:
-            return 0.  # no overlap, stream is fully unconfined
-        else:
-            return min(1., np.sum(line_len) / (2*seg.length))
+            if len(int_coords) == 0:
+                return 1.  # stream network and valley bottom misaligned
+            elif len(line_len) == 0:
+                return 0.  # no overlap, stream is fully unconfined
+            else:
+                return min(1., np.sum(line_len) / (2*seg.length))
 
     def confinement(self):
         """
