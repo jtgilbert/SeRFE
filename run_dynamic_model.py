@@ -9,12 +9,12 @@ import geopandas as gpd
 
 # Inputs - fill these in
 ws = 'data/'
-hydrograph = ws + 'Piru_hydrographs.csv'
+hydrograph = ws + 'hydro.csv'
 flow_exp = 0.84
-network = ws + 'Piru_network_500m.shp'
+network = ws + 'Mutau_network.shp'
 mannings_n = 0.4
 tl_factor = 16.
-outdf = ws + 'piru_output_n4tl16.csv'
+outdf = ws + 'mutau_output_n4tl16.csv'
 
 # Run Model - do not alter anything below this point
 

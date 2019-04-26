@@ -47,3 +47,10 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
     dn.to_file(network)
 
     return
+
+
+wd = 'data/'
+network = wd + 'Mutau_network.shp'
+floodplain = wd + 'Mutau_vb.shp'
+
+extract_floodplain_area(network, floodplain)

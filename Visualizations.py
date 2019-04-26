@@ -154,13 +154,13 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('/home/jordan/Documents/piru_output_n4tl16.csv', 'data/Piru_network.shp', 'data/Piru_hydrographs.csv')
+inst = Visualizations('data/mutau_output_n4tl16.csv', 'data/Mutau_network.shp', 'data/hydro.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-inst.plot_csr_time_series(324)
-#inst.plot_storage(351, 'Wheeler')
+#inst.plot_csr_time_series(324)
+inst.plot_storage(21, 'Wheeler')
 #inst.plot_time_series(597, 'Q')
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')

@@ -31,7 +31,7 @@ class SebaModel:
         segs_ab_dams = []
         for x in self.hydrographs.index:
             print x
-            if self.network.loc[self.hydrographs.loc[x, 'segid'], 'Drain_Area'] == self.network.loc[self.hydrographs.loc[x, 'segid'], 'eff_DA']:
+            if round(self.network.loc[self.hydrographs.loc[x, 'segid'], 'Drain_Area']) == round(self.network.loc[self.hydrographs.loc[x, 'segid'], 'eff_DA']):
                 segs_ab_dams.append(self.hydrographs.loc[x, 'segid'])
 
         self.hyd_ab_dams = self.hydrographs[self.hydrographs['segid'].isin(segs_ab_dams)]

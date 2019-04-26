@@ -42,7 +42,7 @@ def est_fp_thickness(dn, dem):
     return
 
 wd = 'data/'
-network = wd + 'Piru_network_500m.shp'
-dem = wd + 'DEM_10m_Piru.tif'
+network = wd + 'Mutau_network.shp'
+dem = wd + 'Mutau_DEM_10m.tif'
 est_fp_thickness(network, dem)
 
