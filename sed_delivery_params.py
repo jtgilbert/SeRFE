@@ -19,7 +19,7 @@ class SedDeliveryParams:
         self.g_max = g_max
         self.g_scale = g_scale
 
-        self.slope()
+        #self.slope()
         self.get_gamma_vals()
 
     def slope(self): # convolve 2d runs out of memory on large arrays...
@@ -88,13 +88,13 @@ class SedDeliveryParams:
 
 
 # # # run get sediment delivery parameters class
-wd = 'data/'
+wd = 'Piru/'
 dem = wd + 'DEM_10m_Piru.tif'
 slope_out = wd + 'slope.tif'
-network = wd + 'Piru_network.shp'
-neighborhood = 700
-g_min = 0.5
-g_max = 4
+network = wd + 'Piru_network_1km.shp'
+neighborhood = 300
+g_min = 1
+g_max = 3
 g_scale = 0.3
 
 SedDeliveryParams(dem, slope_out, network, neighborhood, g_min, g_max, g_scale)

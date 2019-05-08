@@ -8,13 +8,13 @@ import geopandas as gpd
 
 
 # Inputs - fill these in
-ws = 'data/'
-hydrograph = ws + 'hydro.csv'
+ws = 'Piru/'
+hydrograph = ws + 'Piru_hydrographs.csv'
 flow_exp = 0.84
-network = ws + 'Mutau_network.shp'
+network = ws + 'Piru_network_1km.shp'
 mannings_n = 0.4
 tl_factor = 16.
-outdf = ws + 'mutau_output_n4tl16.csv'
+outdf = ws + 'piru_output_n4tl16_g1_3_spinup.csv'
 
 # Run Model - do not alter anything below this point
 
@@ -29,6 +29,7 @@ for att in attribs:
 # maybe check for empty cells in hydrograph...
 
 seba_run = dynamic_model.SebaModel(hydrograph, flow_exp, network, mannings_n, tl_factor)
-output = seba_run.run_model()
+output = seba_run.run_model(spinup=True)  # specify is running spin-up period or not
 
-output.to_csv(outdf)
+if output is not None:
+    output.to_csv(outdf)

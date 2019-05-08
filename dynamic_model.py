@@ -3,7 +3,6 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 import network_topology as nt
-from math import exp
 
 
 class SebaModel:
@@ -24,6 +23,7 @@ class SebaModel:
         self.network = gpd.read_file(network)
         self.mannings_n = mannings_n
         self.tl_factor = tl_factor
+        self.streams = network
 
         self.nt = nt.TopologyTools(network)
 
@@ -227,16 +227,22 @@ class SebaModel:
             if self.network.loc[segid, 'confine'] != 1.:
                 if depth < self.network.loc[segid, 'fp_thick']:
                     channel_store = (qs_channel + qs_us + prev_ch_store) - qs_out
+                    delta_h = ((channel_store-prev_ch_store)*1) / (0.5*self.network.loc[segid, 'w_bf']*self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope'] = self.network.loc[segid, 'Slope'] + (delta_h/self.network.loc[segid, 'Length_m'])
                 else:
                     channel_ratio = (self.network.loc[segid, 'Length_m']*self.network.loc[segid, 'w_bf'])/((self.network.loc[segid, 'Length_m']*self.network.loc[segid, 'w_bf'])+self.network.loc[segid, 'fp_area'])
                     tl_remain = (qs_channel + qs_us + prev_ch_store) - qs_out
                     bl_remain = tl_remain / self.tl_factor
                     wash_remain = tl_remain - bl_remain
                     channel_store = bl_remain + (wash_remain*channel_ratio)  # remaining bedload and portion of washload overlaying floodplain
+                    delta_h = ((channel_store - prev_ch_store) * 1) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope'] = self.network.loc[segid, 'Slope'] + (delta_h/self.network.loc[segid, 'Length_m'])
                     fp_store = fp_store + (wash_remain*(1-channel_ratio))  # add to fp storage from hillslope contribution
                     fp_thick = fp_store / self.network.loc[segid, 'fp_area']
             else:
                 channel_store = (qs_channel + qs_us + prev_ch_store) - qs_out
+                delta_h = ((channel_store - prev_ch_store) * 1) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                self.network.loc[segid, 'Slope'] = self.network.loc[segid, 'Slope'] + (delta_h/self.network.loc[segid, 'Length_m'])
 
             csr = cap_tot / (qs_channel + qs_us + prev_ch_store)
 
@@ -246,6 +252,8 @@ class SebaModel:
                 qs_out = (qs_channel + qs_us + prev_ch_store) + fp_recr
                 fp_store = fp_store - fp_recr
                 channel_store = 0.
+                delta_h = ((channel_store - prev_ch_store) * 1) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                self.network.loc[segid, 'Slope'] = self.network.loc[segid, 'Slope'] + (delta_h/self.network.loc[segid, 'Length_m'])
                 # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area']  # bulk density 1 tonne / m3
                 fp_thick = fp_thick - fp_recr_thick
@@ -253,6 +261,8 @@ class SebaModel:
                 csr = cap_tot / (qs_channel + qs_us + prev_ch_store + fp_recr)
             else:
                 channel_store = 0.
+                delta_h = ((channel_store - prev_ch_store) * 1) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                self.network.loc[segid, 'Slope'] = self.network.loc[segid, 'Slope'] + (delta_h/self.network.loc[segid, 'Length_m'])
                 qs_out = (qs_channel + qs_us + prev_ch_store)
                 csr = cap_tot / (qs_channel + qs_us + prev_ch_store)
 
@@ -349,69 +359,41 @@ class SebaModel:
                 us = self.nt.find_us_seg(seg)
                 us2 = self.nt.find_us_seg2(seg)
 
-                if us is not None and us2 is not None:
-                    if self.outdf.loc[(time, us), 'Qs_out'] == -9999 or self.outdf.loc[(time, us2), 'Qs_out'] == -9999:
-                        pass
-                    else:
-                        time = time
-                        hyd = self.find_nearest_gage(seg)  # may change this to just be the same as its upstream segment... (stored in outdf)
-
-                        while seg is not None:
-                            self.apply_to_reach(seg, time, hyd)
-
-                            next_reach = self.nt.get_next_reach(seg)
-
-                            if next_reach is not None:
-                                if self.network.loc[next_reach, 'confluence'] == 0:
-                                    if self.network.loc[next_reach, 'eff_DA'] < self.network.loc[seg, 'eff_DA']:
-                                        hyd = self.find_nearest_gage(next_reach)
-                                    else:
-                                        pass
-                                else:
-                                    next_reach = None
-                            else:
-                                pass
-
-                            seg = next_reach
-
-                        conf_list.remove(x)
-
+                if self.outdf.loc[(time, us), 'Qs_out'] == -9999 or self.outdf.loc[(time, us2), 'Qs_out'] == -9999:
+                    pass
                 else:
-                    if self.outdf.loc[(time, us), 'Qs_out'] == -9999:
-                        pass
-                    else:
-                        time = time
-                        hyd = self.find_nearest_gage(seg)  # may change this to just be the same as its upstream segment... (stored in outdf)
+                    time = time
+                    hyd = self.find_nearest_gage(seg)  # may change this to just be the same as its upstream segment... (stored in outdf)
 
-                        while seg is not None:
-                            self.apply_to_reach(seg, time, hyd)
+                    while seg is not None:
+                        self.apply_to_reach(seg, time, hyd)
 
-                            next_reach = self.nt.get_next_reach(seg)
+                        next_reach = self.nt.get_next_reach(seg)
 
-                            if next_reach is not None:
-                                if self.network.loc[next_reach, 'confluence'] == 0:
-                                    if self.network.loc[next_reach, 'eff_DA'] < self.network.loc[seg, 'eff_DA']:
-                                        hyd = self.find_nearest_gage(next_reach)
-                                    else:
-                                        pass
+                        if next_reach is not None:
+                            if self.network.loc[next_reach, 'confluence'] == 0:
+                                if self.network.loc[next_reach, 'eff_DA'] < self.network.loc[seg, 'eff_DA']:
+                                    hyd = self.find_nearest_gage(next_reach)
                                 else:
-                                    next_reach = None
+                                    pass
                             else:
-                                pass
+                                next_reach = None
+                        else:
+                            pass
 
-                            seg = next_reach
+                        seg = next_reach
 
-                        conf_list.remove(x)
+                    conf_list.remove(x)
 
         return
 
-    def run_model(self):
+    def run_model(self, spinup=False):
 
         total_t = self.hydrographs.shape[1]-5
         time = 1
 
         while time <= total_t:
-            print time
+            print 'day ' + str(time)
             # generate a denudation rate from gamma distribution
             #denude = np.random.gamma(self.gamma_shape, self.gamma_scale)
 
@@ -428,18 +410,30 @@ class SebaModel:
             # apply denudation rate to these segments
             for i in self.network.index:
                 if i in segs:
-                    self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'g_shape'], self.network.loc[i, 'g_scale'])  # convert to equation to reduce rate based on DA...?
+                    self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'g_shape'], self.network.loc[i, 'g_scale'])
 
             # run the model for given time step
+            print 'running first order'
             self.run_first_order(time)
 
+            print 'running below confluences'
             self.run_below_confluences(time)
 
             # reset denude rates for undisturbed reaches
-            for i in self.network.index:
-                if i in segs:
+            if time < 100:
+                for i in self.network.index:
+                    if i in segs:
+                        self.network.loc[i, 'denude'] = -9999
+            else:
+                for i in self.network.index:
                     self.network.loc[i, 'denude'] = -9999
 
             time += 1
 
-        return self.outdf
+        if spinup:
+            self.network.to_file(self.streams)
+
+            return None
+        else:
+
+            return self.outdf

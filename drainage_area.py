@@ -4,6 +4,7 @@
 import pygeoprocessing.routing as rt
 import rasterio
 import os
+import numpy as np
 
 
 def drain_area(dem, drain_area_out):
@@ -23,17 +24,19 @@ def drain_area(dem, drain_area_out):
 
     # geoprocessing functions
     rt.fill_pits((dem, 1), filled)
-    rt.flow_dir_mfd((filled, 1), fd)
-    rt.flow_accumulation_mfd((fd, 1), fa)
+    rt.flow_dir_d8((filled, 1), fd)
+    rt.flow_accumulation_d8((fd, 1), fa)
 
     # convert flow accumulation to drainage area
-    flow_acc = rasterio.open(fa)
+    flow_acc = rasterio.open(fa, 'r')
     resolution = flow_acc.res[0]
     flow_acc_array = flow_acc.read(1)
+    flow_acc_array = np.asarray(flow_acc_array, dtype='float64')
     dr_area_array = (flow_acc_array * resolution**2)/1000000.0
 
     # write output file
     profile = flow_acc.profile
+    profile.update({'dtype': 'float64'})
 
     with rasterio.open(drain_area_out, 'w', **profile) as dst:
         dst.write(dr_area_array, 1)

@@ -28,8 +28,8 @@ def est_fp_thickness(dn, dem):
             fp_elev = fp_zs[0].get('mean')
             if chan_elev:
                 if fp_elev:
-                    fp_thick = max(0.1, abs(fp_zs[0].get('mean') - low_zs[0].get('mean')))  # min of 0.1m
-                    network.loc[i, 'fp_thick'] = min(1., fp_thick)  # max of 1m, make parameter?
+                    fp_thick = max(0.2, abs(fp_zs[0].get('mean') - low_zs[0].get('mean')))  # min of 0.2 m
+                    network.loc[i, 'fp_thick'] = min(1.5, fp_thick)  # max of 1.5 m, make parameter?
                 else:
                     network.loc[i, 'fp_thick'] = 0.
             else:
@@ -41,8 +41,8 @@ def est_fp_thickness(dn, dem):
 
     return
 
-wd = 'data/'
-network = wd + 'Mutau_network.shp'
-dem = wd + 'Mutau_DEM_10m.tif'
+wd = 'Piru/'
+network = wd + 'Piru_network_1km.shp'
+dem = wd + 'DEM_10m_Piru.tif'
 est_fp_thickness(network, dem)
 

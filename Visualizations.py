@@ -40,9 +40,12 @@ class Visualizations:
         fig, ax = plt.subplots(figsize=(10, 7))
         ax.plot(self.df.index.levels[0][0:-1], series, linewidth=5, color='blue')
         #ax.axhline(1, linestyle='dashed', color='k')
-        ax.set_xlabel('Time Step', fontsize='large')
-        ax.set_ylabel(str(att), fontsize='x-large')
-        ax.set_title("Segment {0}: {1}".format(seg, att), fontsize='x-large', fontweight='bold')
+        ax.set_xlabel('Time Step', fontsize=16)
+        ax.set_ylabel(str(att), fontsize=16)
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        if att == 'Q':
+            att = 'Discharge'
+        ax.set_title("Segment {0}: {1}".format(seg, att), fontsize=20, fontweight='bold')
         plt.show()
 
         return
@@ -54,16 +57,37 @@ class Visualizations:
             series.append(val)
         series = series[0:-1]
 
-        fig, ax = plt.subplots(2, 1, figsize=(10, 7))
-        ax[0].plot(self.df.index.levels[0][0:-1], series, linewidth=5, color='g', label='_nolegend_')
+        fig, ax = plt.subplots(2, 1, figsize=(10, 8))
+        ax[0].plot(self.df.index.levels[0][0:-1], series, linewidth=3, color='g', label='_nolegend_')
+        ax[0].tick_params(axis='both', which='major', labelsize=16)
         ax[0].axhline(series[0], linestyle='dashed', color='k', label='Initial value')
-        ax[0].set_xlabel('Time Step', fontsize=14)
-        ax[0].set_ylabel('Storage', fontsize=14)
-        ax[0].set_title("Segment {0}: Total Sediment Storage".format(seg), fontsize='x-large', fontweight='bold')
-        ax[0].legend()
+        #ax[0].set_xlabel('Time Step', fontsize=16)
+        ax[0].set_ylabel('Storage (tonnes)', fontsize=16)
+        ax[0].set_title("Segment {0}: Total Sediment Storage".format(seg), fontsize=20, fontweight='bold')
+        ax[0].legend(fontsize=14)
         ax[1].plot(self.df.index.levels[0][0:-1], self.hyd.loc[hyd_gage][4:-1], color='k', linewidth=3)
-        ax[1].set_xlabel('Time Step', fontsize=14)
-        ax[1].set_ylabel('Q (cms) at nearest gage', fontsize=14)
+        ax[1].tick_params(axis='both', which='major', labelsize=16)
+        ax[1].set_xlabel('Time Step', fontsize=16)
+        ax[1].set_ylabel('Q (cms) at nearest gage', fontsize=16)
+        plt.show()
+
+        return
+
+    def plot_storage2(self, seg, att='Store_tot'):
+        series = []
+        for x in self.df.index.levels[0]:
+            val = self.df.loc[(x, seg), att]
+            series.append(val)
+        series = series[0:-1]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(self.df.index.levels[0][0:-1], series, linewidth=3, color='g', label='_nolegend_')
+        ax.tick_params(axis='both', which='major', labelsize=16)
+        ax.axhline(series[0], linestyle='dashed', color='k', label='Initial value')
+        ax.set_xlabel('Time Step', fontsize=16)
+        ax.set_ylabel('Storage (tonnes)', fontsize=16)
+        ax.set_title("Segment {0}: Total Sediment Storage".format(seg), fontsize=20, fontweight='bold')
+        ax.legend(fontsize=14)
         plt.show()
 
         return
@@ -154,14 +178,14 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('data/mutau_output_n4tl16.csv', 'data/Mutau_network.shp', 'data/hydro.csv')
+inst = Visualizations('SP/sp_output_n4tl16_nofire_spinup.csv', 'SP/SP_network_500m.shp', 'SP/SP_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-#inst.plot_csr_time_series(324)
-inst.plot_storage(21, 'Wheeler')
-#inst.plot_time_series(597, 'Q')
+#inst.plot_csr_time_series(320)
+inst.plot_storage2(19)
+#inst.plot_time_series(22, 'Q')
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')
 #print inst2.seg_mean(17, 'CSR')

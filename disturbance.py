@@ -1,6 +1,7 @@
 # imports
 import geopandas as gpd
 import network_topology as nt
+import numpy as np
 
 
 class Disturbances:
@@ -50,7 +51,7 @@ class Disturbances:
 
         if new_denude is not None:
             for x in range(len(segid)):
-                self.network.loc[segid[x], 'denude'] = new_denude[x]
+                self.network.loc[segid[x], 'denude'] = np.random.gamma(new_denude[0], new_denude[1])
 
         self.network.to_file(self.streams)
 
@@ -64,6 +65,7 @@ class Disturbances:
 
         # add directly contributing DA to each network segment
         for i in self.network.index:
+            print 'segment ' + str(i)
             us_seg = self.topo.find_us_seg(i)
             us_seg2 = self.topo.find_us_seg2(i)
             if us_seg is not None:
@@ -85,11 +87,16 @@ class Disturbances:
         return
 
 
-wd = 'data/'
-network = wd + 'Piru_network.shp'
-segid = [453, 69]
-newda = [0, 0]
+wd = 'SP/'
+network = wd + 'SP_network_500m.shp'
+segid = [11, 12, 13, 14, 15, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
+         43, 44, 45, 46, 47, 48, 49,
+         50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
+         74, 75, 76, 77, 78, 79, 80,
+         81, 82, 83]
+#newda = [0, 0]
+new_denude = [5, 0.3]  # new gamma shape and scale
 
 inst = Disturbances(network)
-inst.add_disturbance(segid=segid, new_da=newda)
+inst.add_disturbance(segid=segid, new_denude=new_denude)
 inst.update_direct_da()

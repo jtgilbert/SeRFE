@@ -49,8 +49,8 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
     return
 
 
-wd = 'data/'
-network = wd + 'Mutau_network.shp'
-floodplain = wd + 'Mutau_vb.shp'
+wd = 'SP/'
+network = wd + 'SP_network_500m.shp'
+floodplain = wd + 'SP_VB.shp'
 
 extract_floodplain_area(network, floodplain)
