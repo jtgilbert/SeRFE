@@ -73,20 +73,32 @@ class Visualizations:
 
         return
 
-    def plot_storage2(self, seg, att='Store_tot'):
+    def plot_storage2(self, seg, att='Store_tot', att2='Store_chan'):
         series = []
         for x in self.df.index.levels[0]:
             val = self.df.loc[(x, seg), att]
             series.append(val)
         series = series[0:-1]
 
+        series2 = []
+        for x in self.df.index.levels[0]:
+            val2 = self.df.loc[(x, seg), att2]
+            series2.append(val2)
+        series2 = series2[0:-1]
+
+        series3 = []
+        for i in range(len(series)):
+            val3 = series[i] - series2[i]
+            series3.append(val3)
+
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(self.df.index.levels[0][0:-1], series, linewidth=3, color='g', label='_nolegend_')
+        ax.plot(self.df.index.levels[0][0:-1], series, linewidth=3, color='g', label='total')
+        ax.plot(self.df.index.levels[0][0:-1], series3, linewidth=3, color='c', label='floodplain')
         ax.tick_params(axis='both', which='major', labelsize=16)
         ax.axhline(series[0], linestyle='dashed', color='k', label='Initial value')
         ax.set_xlabel('Time Step', fontsize=16)
         ax.set_ylabel('Storage (tonnes)', fontsize=16)
-        ax.set_title("Segment {0}: Total Sediment Storage".format(seg), fontsize=20, fontweight='bold')
+        ax.set_title("Segment {0}: Sediment Storage".format(seg), fontsize=20, fontweight='bold')
         ax.legend(fontsize=14)
         plt.show()
 
@@ -151,7 +163,7 @@ class Visualizations:
             for x in self.df.index.levels[0]:
                 val = self.df.loc[(x, i), 'CSR'] - 1
                 tot.append(val)
-            self.network.loc[i, 'CSR_sum'] = np.sum(tot)
+            self.network.loc[i, 'CSR_sum'] = np.sum(tot)/365
 
         self.network.to_file(self.streams)
 
@@ -178,13 +190,13 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('SP/sp_output_n4tl16_nofire_spinup.csv', 'SP/SP_network_500m.shp', 'SP/SP_hydrographs.csv')
+inst = Visualizations('SP/sp_output_n4tl16_nofire.csv', 'SP/SP_network_500m.shp', 'SP/SP_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
 #inst.plot_csr_time_series(320)
-inst.plot_storage2(19)
+inst.plot_storage2(21)
 #inst.plot_time_series(22, 'Q')
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')

@@ -44,12 +44,12 @@ class SebaModel:
         segments = np.arange(0, len(self.network.index + 1), 1)
 
         ydim = len(time)*len(segments)
-        zeros = np.zeros((ydim, 8))  # where cols is number of attributes
+        zeros = np.zeros((ydim, 7))  # where cols is number of attributes
 
         iterables = [time, segments]
         index = pd.MultiIndex.from_product(iterables, names=['time', 'segment'])
 
-        self.outdf = pd.DataFrame(zeros, index=index, columns=['Q', 'Qs', 'Qs_out', 'CSR', 'Store_chan', 'Store_tot', 'Store_delta', 'S*'])  # add the names of attributes
+        self.outdf = pd.DataFrame(zeros, index=index, columns=['Q', 'Qs', 'Qs_out', 'CSR', 'Store_chan', 'Store_tot', 'Store_delta'])  # add the names of attributes
 
     def find_flow_coef(self, Q, DA):
 
@@ -194,10 +194,14 @@ class SebaModel:
 
         # find transport capacity
         f_sand = self.network.loc[segid, 'f_sand']
-        if flow >= (0.7 * self.network.loc[segid, 'Q2 (cms)']):
+        if flow >= 1.5 * self.network.loc[segid, 'Q2 (cms)']:
             w = self.network.loc[segid, 'w_flood']
-        elif flow >= (0.05 * self.network.loc[segid, 'Q2 (cms)']) and (flow < 0.7 * self.network.loc[segid, 'Q2 (cms)']):
+        elif flow >= self.network.loc[segid, 'Q2 (cms)'] and flow < (1.5 * self.network.loc[segid, 'Q2 (cms)']):
+            w = (self.network.loc[segid, 'w_bf'] + self.network.loc[segid, 'w_flood'])/2
+        elif flow >= (0.5 * self.network.loc[segid, 'Q2 (cms)']) and flow < self.network.loc[segid, 'Q2 (cms)']:
             w = self.network.loc[segid, 'w_bf']
+        elif flow >= (0.1 * self.network.loc[segid, 'Q2 (cms)']) and flow < (0.5 * self.network.loc[segid, 'Q2 (cms)']):
+            w = (self.network.loc[segid, 'w_bf'] + self.network.loc[segid, 'w_low'])/2
         else:  # flow < (0.05 * self.network.loc[segid, 'Q2 (cms)']):
             w = self.network.loc[segid, 'w_low']
         S = self.network.loc[segid, 'Slope']
@@ -291,25 +295,8 @@ class SebaModel:
         self.outdf.loc[(time, segid), 'Store_chan'] = channel_store
         if time > 1:
             self.outdf.loc[(time, segid), 'Store_delta'] = store_tot - (self.outdf.loc[(time-1, segid), 'Store_tot'])
-
-            prev_flow = self.outdf.loc[(time-1, segid), 'Q']
-            if flow == 0:
-                if prev_flow == 0.:
-                    flow = 1.  # avoid division by zero
-                    prev_flow = 1.
-                else:
-                    flow = 1.
-
-            prev_qs = self.outdf.loc[(time-1, segid), 'Qs']
-            if prev_qs == 0.:
-                prev_qs = 1.  # sets upper limit at new storage = 2x old storage if there was no storage before
-
-            s_star = (np.sqrt((qs_channel+qs_us+prev_ch_store)/prev_qs))*(prev_flow/flow)
-
-            self.outdf.loc[(time, segid), 'S*'] = s_star  # no D component for now
         else:
             self.outdf.loc[(time, segid), 'Store_delta'] = 0
-            self.outdf.loc[(time, segid), 'S*'] = 1
 
         return
 

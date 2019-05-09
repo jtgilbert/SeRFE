@@ -14,7 +14,7 @@ flow_exp = 0.84
 network = ws + 'Piru_network_1km.shp'
 mannings_n = 0.4
 tl_factor = 16.
-outdf = ws + 'piru_output_n4tl16_g1_3_spinup.csv'
+outdf = ws + 'piru_output_n4tl16_g1_35.csv'
 
 # Run Model - do not alter anything below this point
 
@@ -29,7 +29,7 @@ for att in attribs:
 # maybe check for empty cells in hydrograph...
 
 seba_run = dynamic_model.SebaModel(hydrograph, flow_exp, network, mannings_n, tl_factor)
-output = seba_run.run_model(spinup=True)  # specify is running spin-up period or not
+output = seba_run.run_model()  # specify is running spin-up period or not
 
 if output is not None:
     output.to_csv(outdf)
