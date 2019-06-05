@@ -40,9 +40,3 @@ def est_fp_thickness(dn, dem):
     network.to_file(dn)
 
     return
-
-wd = 'Piru/'
-network = wd + 'Piru_network_1km.shp'
-dem = wd + 'DEM_10m_Piru.tif'
-est_fp_thickness(network, dem)
-

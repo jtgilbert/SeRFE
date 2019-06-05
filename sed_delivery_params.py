@@ -9,7 +9,7 @@ from rasterstats import zonal_stats
 
 class SedDeliveryParams:
 
-    def __init__(self, dem, slope_out, network, neighborhood, g_min, g_max, g_scale):
+    def __init__(self, dem, slope_out, network, neighborhood, g_min, g_max, g_scale, calc_slope=False):
         self.dem = dem
         self.slope_out = slope_out
         self.dn = gpd.read_file(network)
@@ -19,10 +19,11 @@ class SedDeliveryParams:
         self.g_max = g_max
         self.g_scale = g_scale
 
-        #self.slope()
+        if calc_slope is True:
+            self.slope()
         self.get_gamma_vals()
 
-    def slope(self): # convolve 2d runs out of memory on large arrays...
+    def slope(self):  # convolve 2d runs out of memory on large arrays...
         """
         Finds the slope using partial derivative method
         :param dem: path to a digital elevation raster

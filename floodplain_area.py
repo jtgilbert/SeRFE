@@ -16,11 +16,16 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
     dn = gpd.read_file(network)
     fp = gpd.read_file(floodplain)
 
+    atts = ['Drain_Area', 'w_bf', 'Length_m']
+    for att in atts:
+        if att not in dn.columns:
+            raise Exception('input network does not contain all necessary attributes (Drain_Area, w_bf, Length_m)')
+
     fp_areas = []
 
     for i in dn.index:
         seg = dn.loc[i]
-        da = seg['Drain_Area']  # check that network has attribute
+        da = seg['Drain_Area']
         geom = seg['geometry']
 
         print i
@@ -37,7 +42,7 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
             buf = line.buffer(sm_buf, cap_style=2)
 
         inters = buf.intersection(fp.loc[0, 'geometry'])  # make sure valley is single part
-        fpa = inters.area - (seg['w_bf']*seg['Length_m'])  # check that network has attributes
+        fpa = inters.area - (seg['w_bf']*seg['Length_m'])
         if fpa < 0:
             fpa = 0
         fp_areas.append(fpa)
@@ -47,10 +52,3 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
     dn.to_file(network)
 
     return
-
-
-wd = 'SP/'
-network = wd + 'SP_network_500m.shp'
-floodplain = wd + 'SP_VB.shp'
-
-extract_floodplain_area(network, floodplain)

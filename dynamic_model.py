@@ -5,17 +5,19 @@ import numpy as np
 import network_topology as nt
 
 
-class SebaModel:
+class SerfeModel:
     """
     This class runs the dynamic sediment balance model
     """
 
-    def __init__(self, hydrograph, flow_exp, network, mannings_n=0.4, tl_factor=15):  # should probably make mannnings n and total load factor parameters
+    def __init__(self, hydrograph, flow_exp, network, mannings_n=0.4, tl_factor=15):
         """
 
-        :param hydrograph: table with fields 'Gage', 'segid', 'Easting', 'Northing', 'DA', and 'Day1' ..... 'DayN'
-        :param denude_rate:
-        :param network:
+        :param hydrograph: csv file filled in with hydrograph information
+        :param flow_exp: discharge-drainage area relationship exponent (can be found in plot produced from hydrology tool)
+        :param network: drainage network shapefile
+        :param mannings_n: a value for an average Manning's n for the basin
+        :param tl_factor: a total load factor to convert bedload transport capacity into total load transport capacity
         """
 
         self.hydrographs = pd.read_csv(hydrograph, index_col='Gage')
@@ -44,7 +46,7 @@ class SebaModel:
         segments = np.arange(0, len(self.network.index + 1), 1)
 
         ydim = len(time)*len(segments)
-        zeros = np.zeros((ydim, 7))  # where cols is number of attributes
+        zeros = np.zeros((ydim, 7))
 
         iterables = [time, segments]
         index = pd.MultiIndex.from_product(iterables, names=['time', 'segment'])
@@ -52,12 +54,23 @@ class SebaModel:
         self.outdf = pd.DataFrame(zeros, index=index, columns=['Q', 'Qs', 'Qs_out', 'CSR', 'Store_chan', 'Store_tot', 'Store_delta'])  # add the names of attributes
 
     def find_flow_coef(self, Q, DA):
-
+        """
+        finds the coefficient in the drainage area - discharge relationship to extrapolate flow values
+        :param Q: the discharge for a given time step
+        :param DA: the drainage area of the location associated with the discharge
+        :return: a coeffiecient for the drainage area - discharge relationship
+        """
         a = Q / DA**self.flow_exp
 
         return a
 
     def find_nearest_gage(self, segid, above_dams=False):
+        """
+        Finds the nearest gage to a given stream segment
+        :param segid: segment ID
+        :param above_dams: boolean - is the gage above all dams?
+        :return: the ID of the nearest gage
+        """
         seg_geom = self.network.loc[segid, 'geometry']
         x_coord = seg_geom.boundary[0].xy[0][0]
         y_coord = seg_geom.boundary[0].xy[1][0]
@@ -84,7 +97,12 @@ class SebaModel:
         return gage
 
     def get_upstream_qs(self, time, segid):
-
+        """
+        obtains the sediment flux from the adjacent upstream segment(s)
+        :param time: time step
+        :param segid: segment ID
+        :return: sediment flux (tonnes)
+        """
         us_seg = self.nt.find_us_seg(segid)
         us_seg2 = self.nt.find_us_seg2(segid)
 
@@ -103,7 +121,11 @@ class SebaModel:
         return usqs_tot
 
     def get_direct_qs(self, segid):
-
+        """
+        obtains the hillslope sediment delivery
+        :param segid: segment ID
+        :return: sediment flux (tonnes)
+        """
         # assume sediment bulk density
         sed_density = 2.6  # tonne/m^3; should this be reduced to represent bulk density...?
 
@@ -115,7 +137,15 @@ class SebaModel:
         return dir_qs
 
     def transport_capacity(self, Q, f_sand, w, S, D):  # denudation is all sediment whereas transport is just bedload. Just use proportion (e.g. bl = 25% total..?) and sep gravel and sand..?
-
+        """
+        calculates bedload transport capacity using Lammers and Bledsoe 2018
+        :param Q: flow (cms)
+        :param f_sand: fraction of sand in the bed (0-1)
+        :param w: channel width
+        :param S: bed slope
+        :param D: median grain size
+        :return: bedload transport capacity (tonnes)
+        """
         # variables
         rho = 1000.
         rho_s = 2650.
@@ -151,10 +181,10 @@ class SebaModel:
 
     def apply_to_reach(self, segid, time, gage):
         """
-
-        :param segid: int
-        :param time: string
-        :param gage: string
+        applies the SeRFE logic to a given reach
+        :param segid: segment ID
+        :param time: time step
+        :param gage: gage ID
         :return:
         """
         # above dams, simple flow calc
@@ -301,7 +331,11 @@ class SebaModel:
         return
 
     def run_first_order(self, time):
-
+        """
+        runs the model for all first order stream segments
+        :param time: time step
+        :return:
+        """
         seg = self.nt.seg_id_from_rid('1.1')
         time = time
         gage = self.find_nearest_gage(seg)
@@ -327,7 +361,11 @@ class SebaModel:
         return
 
     def run_below_confluences(self, time):
-
+        """
+        runs the model for all stream segments below confluences (greater than first order)
+        :param time: time step
+        :return:
+        """
         conf_list = []  # is there a way to get rid of this type of for loop
         da_vals = []
         for i in self.network.index:
@@ -375,28 +413,29 @@ class SebaModel:
         return
 
     def run_model(self, spinup=False):
-
+        """
+        method that runs the dynamic SeRFE model
+        :param spinup: boolean - True of running spinup period, False if saving outputs
+        :return: a dataframe with two index columns (Segment ID and time step) containing model outputs for each segment
+        """
         total_t = self.hydrographs.shape[1]-5
         time = 1
 
         while time <= total_t:
             print 'day ' + str(time)
-            # generate a denudation rate from gamma distribution
-            #denude = np.random.gamma(self.gamma_shape, self.gamma_scale)
 
             # set qs_out initially to -9999
             for i in range(len(self.outdf.index.levels[1])):
                 self.outdf.loc[(time, i), 'Qs_out'] = -9999
 
-            # id segments that don't have an updated 'disturbed' denude rate
-            segs = []
+            # apply denudation rate to each segment
             for i in self.network.index:
-                if self.network.loc[i, 'denude'] == -9999:
-                    segs.append(i)
-
-            # apply denudation rate to these segments
-            for i in self.network.index:
-                if i in segs:
+                if self.network.loc[i, 'dist_start'] != -9999:
+                    if time in range(self.network.loc[i, 'dist_start'], (self.network.loc[i, 'dist_end']+1)):
+                        self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'dist_g_sh'], self.network.loc[i, 'dist_g_sc'])
+                    else:
+                        self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'g_shape'], self.network.loc[i, 'g_scale'])
+                else:
                     self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'g_shape'], self.network.loc[i, 'g_scale'])
 
             # run the model for given time step
@@ -406,16 +445,7 @@ class SebaModel:
             print 'running below confluences'
             self.run_below_confluences(time)
 
-            # reset denude rates for undisturbed reaches
-            if time < 100:
-                for i in self.network.index:
-                    if i in segs:
-                        self.network.loc[i, 'denude'] = -9999
-            else:
-                for i in self.network.index:
-                    self.network.loc[i, 'denude'] = -9999
-
-            time += 1
+            # reset denude rates to -9999, do I need to do this or will it just overwrite?
 
         if spinup:
             self.network.to_file(self.streams)

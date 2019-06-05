@@ -190,13 +190,13 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('SP/sp_output_n4tl16_nofire.csv', 'SP/SP_network_500m.shp', 'SP/SP_hydrographs.csv')
+inst = Visualizations('SC/sc_output_n35tl16_g2_5.csv', 'SC/SC_network_1km.shp', 'SC/SC_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
 #inst.plot_csr_time_series(320)
-inst.plot_storage2(21)
+inst.plot_storage2(521)
 #inst.plot_time_series(22, 'Q')
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')

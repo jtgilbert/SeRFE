@@ -25,14 +25,36 @@ class Disturbances:
             for i in self.network.index:
                 self.network.loc[i, 'eff_DA'] = self.network.loc[i, 'Drain_Area']
 
-        # add a denudation rate field, default to 0
+        # add a denudation rate field, default to -9999
         if 'denude' in self.network.columns:
             pass
         else:
             for i in self.network.index:
                 self.network.loc[i, 'denude'] = -9999
 
-    def add_disturbance(self, segid, new_da=None, new_denude=None):
+        # add a disturbance start time field
+        if 'dist_start' in self.network.columns:
+            pass
+        else:
+            for i in self.network.index:
+                self.network.loc[i, 'dist_start'] = -9999
+
+        # add a disturbance end time field
+        if 'dist_end' in self.network.columns:
+            pass
+        else:
+            for i in self.network.index:
+                self.network.loc[i, 'dist_end'] = -9999
+
+        # add a disturbance gamma shape and scale
+        if 'dist_g_sh' in self.network.columns:
+            pass
+        else:
+            for i in self.network.index:
+                self.network.loc[i, 'dist_g_sh'] = -9999
+                self.network.loc[i, 'dist_g_sc'] = -9999
+
+    def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None):
         """
         Run separately for things that change effective da (e.g. dams) and
         things that increase sedimentation (e.g. fire)
@@ -42,7 +64,7 @@ class Disturbances:
         :return:
         """
 
-        if new_da is not None:
+        if new_da:
             for x in range(len(segid)):
                 da = self.network.loc[segid[x], 'Drain_Area']
                 ds_segs = self.topo.find_all_ds(segid[x])
@@ -51,7 +73,20 @@ class Disturbances:
 
         if new_denude is not None:
             for x in range(len(segid)):
-                self.network.loc[segid[x], 'denude'] = np.random.gamma(new_denude[0], new_denude[1])
+                if len(dist_start) > 1:
+                    self.network.loc[segid[x], 'dist_start'] = dist_start[x]
+                else:
+                    self.network.loc[segid[x], 'dist_start'] = dist_start[0]
+                if len(dist_end) > 1:
+                    self.network.loc[segid[x], 'dist_end'] = dist_end[x]
+                else:
+                    self.network.loc[segid[x], 'dist_end'] = dist_end[0]
+                if len(new_denude) > 1:
+                    self.network.loc[segid[x], 'dist_g_sh'] = new_denude[x][0]
+                    self.network.loc[segid[x], 'dist_g_sc'] = new_denude[x][1]
+                else:
+                    self.network.loc[segid[x], 'dist_g_sh'] = new_denude[0][0]
+                    self.network.loc[segid[x], 'dist_g_sc'] = new_denude[0][1]
 
         self.network.to_file(self.streams)
 
@@ -85,18 +120,3 @@ class Disturbances:
             self.network.to_file(self.streams)
 
         return
-
-
-wd = 'SP/'
-network = wd + 'SP_network_500m.shp'
-segid = [11, 12, 13, 14, 15, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
-         43, 44, 45, 46, 47, 48, 49,
-         50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
-         74, 75, 76, 77, 78, 79, 80,
-         81, 82, 83]
-#newda = [0, 0]
-new_denude = [5, 0.3]  # new gamma shape and scale
-
-inst = Disturbances(network)
-inst.add_disturbance(segid=segid, new_denude=new_denude)
-inst.update_direct_da()
