@@ -4,16 +4,19 @@ import geopandas as gpd
 import Visualizations
 
 # directory
-dir = '/data'
+dir = 'SP/'
 
 
 # Inputs - fill these in
-hydrograph = dir + '.csv'  # name and extension of csv file with hydrograph information filled in
+hydrograph = dir + 'SP_hydrographs_2017.csv'  # name and extension of csv file with hydrograph information filled in
+width_table = dir + 'SC_width_table.csv'  # .csv file with drainage area, discharge and width measurements
 flow_exp = 0.84  # discharge-drainage area relationship exponent (can be found in plot produced from hydrology tool)
-network = dir + '.shp'  # name and extension of drainage network shapefile
-mannings_n = 0.4  # average Manning's n value for the basin
-tl_factor = 16.  # the total load factor to convert bedload to total load transport capacity
-outdf = dir + '.csv'  # name and extension for storing output dataframe
+network = dir + 'SP_network_500m.shp'  # name and extension of drainage network shapefile
+mannings_min = 0.045  # minimum Manning's n value for the basin (fine-grained reaches)
+mannings_max = 0.06  # maximum Manning's n value for the basin (course-grained reaches)
+bulk_density = 1.2  # average or estimated sediment bulk density in the basin
+
+outdf = dir + 'sp_out_2017_fire.csv'  # name and extension for storing output dataframe
 spinup = False  # True if running a spinup period in which floodplain height and slope values are updated without
                 # saving any outputs. False if running model to store outputs
 
@@ -21,8 +24,8 @@ spinup = False  # True if running a spinup period in which floodplain height and
 
 # check that network has all necessary attributes
 stream_network = gpd.read_file(network)
-attribs = ['Drain_Area', 'eff_DA', 'direct_DA', 'denude', 'confine', 'fp_area', 'fp_thick', 'f_sand', 'Q2 (cms)',
-           'w_low', 'w_bf', 'w_flood', 'Slope', 'D_pred', 'Length_m', 'g_shape', 'g_scale', 'dist_start', 'dist_end',
+attribs = ['Drain_Area', 'eff_DA', 'direct_DA', 'denude', 'confine', 'fp_area', 'fpt_mid', 'Q2 (cms)',
+           'w_bf', 'Slope_mid', 'D_pred_mid', 'Length_m', 'g_shape', 'g_scale', 'dist_start', 'dist_end',
            'dist_g_sh', 'dist_g_sc']
 for att in attribs:
     if att not in stream_network.columns:
@@ -30,24 +33,36 @@ for att in attribs:
 
 # maybe check for empty cells in hydrograph...
 
-serfe_run = dynamic_model.SerfeModel(hydrograph, flow_exp, network, mannings_n, tl_factor)
+serfe_run = dynamic_model.SerfeModel(hydrograph, width_table, flow_exp, network, mannings_min, mannings_max, bulk_density)
 output = serfe_run.run_model(spinup=spinup)  # specify is running spin-up period or not
 
 # save output dataframe to csv file
 if output is not None:
     output.to_csv(outdf)
 
-# update stream network with outputs
-vis = Visualizations.Visualizations(outdf, network, hydrograph)
-vis.sum_plot('Qs_out')
-vis.delta_storage_plot()
-vis.csr_integrate()
+if not spinup:
+    # update stream network with outputs
+    vis = Visualizations.Visualizations(outdf, network, hydrograph)
+    vis.sum_plot('Qs_out_min')
+    vis.sum_plot('Qs_out_mid')
+    vis.sum_plot('Qs_out_max')
+    vis.delta_storage_plot()
+    vis.csr_integrate()
 
-Qs_norm = []
-dn = gpd.read_file(network)
-for i in dn.index:
-    qs = dn.loc[i, 'Qs_out'] / dn.loc[i, 'Drain_Area']
-    Qs_norm.append(qs)
+    Qs_norm_min = []
+    Qs_norm_mid = []
+    Qs_norm_max = []
 
-dn['Qs_norm'] = Qs_norm
-dn.to_file(network)
+    dn = gpd.read_file(network)
+    for i in dn.index:
+        qs_min = dn.loc[i, 'Qs_out_min'] / dn.loc[i, 'Drain_Area']
+        Qs_norm_min.append(qs_min)
+        qs_mid = dn.loc[i, 'Qs_out_mid'] / dn.loc[i, 'Drain_Area']
+        Qs_norm_mid.append(qs_mid)
+        qs_max = dn.loc[i, 'Qs_out_max'] / dn.loc[i, 'Drain_Area']
+        Qs_norm_max.append(qs_max)
+
+    dn['Qs_nor_min'] = Qs_norm_min
+    dn['Qs_nor_mid'] = Qs_norm_mid
+    dn['Qs_nor_max'] = Qs_norm_max
+    dn.to_file(network)

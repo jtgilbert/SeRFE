@@ -132,6 +132,7 @@ def add_slope(network, dem, crs_epsg):
 
     # create a list to store slope values
     slope = []
+    sin = []
 
     # iterate through each network segment, calculate slope and add to list
     for i in flowlines.index:
@@ -143,6 +144,10 @@ def add_slope(network, dem, crs_epsg):
         y_coord1 = seg_geom.boundary[0].xy[1][0]
         x_coord2 = seg_geom.boundary[1].xy[0][0]
         y_coord2 = seg_geom.boundary[1].xy[1][0]
+
+        dist = ((x_coord1-x_coord2)**2+(y_coord1-y_coord2)**2)**0.5
+        sin_val = length/dist
+        sin.append(sin_val)
 
         # create points at the line end points
         pt1 = Point(x_coord1, y_coord1)
@@ -166,7 +171,10 @@ def add_slope(network, dem, crs_epsg):
         slope.append(slope_value)
 
     # add slope values to network attribute table
-    flowlines['Slope'] = slope
+    flowlines['Slope_min'] = slope
+    flowlines['Slope_mid'] = slope
+    flowlines['Slope_max'] = slope
+    flowlines['Sinuos'] = sin
     flowlines.to_file(network)
 
     return

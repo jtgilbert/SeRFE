@@ -5,6 +5,8 @@ from sklearn.utils import resample
 import matplotlib.pyplot as plt
 import os
 import network_topology as nt
+from sklearn import linear_model
+
 
 
 class Dpred:
@@ -13,7 +15,7 @@ class Dpred:
     segment of a drainage network. This value is then used to predict grain size throughout the network.
     """
 
-    def __init__(self, network, grain_size, f_sand, reach_ids, f_sand_default):
+    def __init__(self, network, grain_size, reach_ids, width_table):
         """
 
         :param network: drainage network shapefile
@@ -27,78 +29,84 @@ class Dpred:
         self.streams = network
         self.network = gpd.read_file(network)
         self.grain_size = grain_size
-        self.f_sand = f_sand
         self.reach_ids = reach_ids
-        self.f_sand_default = f_sand_default
+        self.width_table = width_table
         self.topo = nt.TopologyTools(self.streams)
 
         self.width = []
         self.slope = []
         self.Q2 = []
-        self.Qc = []
+        self.Qc_mid = []
+        self.Qc_low = []
+        self.Qc_high = []
+
+        # add a 'bankfull' width attribute
+        w_model = self.get_width_model()
+        self.add_w_bf(w_model)
+
+        self.network = gpd.read_file(self.streams)
 
         for i in self.reach_ids:
             w = self.network.loc[i, 'w_bf']
             self.width.append(w)
-            s = self.network.loc[i, 'Slope']
+            s = self.network.loc[i, 'Slope_mid']
             self.slope.append(s)
             q2 = self.network.loc[i, 'Q2 (cms)']
             self.Q2.append(q2)
 
         for x in range(len(self.reach_ids)):
-            qc = self.find_Qc(x)
-            self.Qc.append(qc)
+            qc_mid, qc_low, qc_high = self.find_Qc(x)
+            self.Qc_mid.append(qc_mid)
+            self.Qc_low.append(qc_low)
+            self.Qc_high.append(qc_high)
 
-        self.Qc_prop = []
+        self.Qc_prop_mid = []
+        self.Qc_prop_low = []
+        self.Qc_prop_high = []
         for y in range(len(self.Q2)):
-            prop = self.Qc[y] / self.Q2[y]
-            self.Qc_prop.append(prop)
+            prop_mid = self.Qc_mid[y] / self.Q2[y]
+            self.Qc_prop_mid.append(prop_mid)
+            prop_low = self.Qc_low[y] / self.Q2[y]
+            self.Qc_prop_low.append(prop_low)
+            prop_high = self.Qc_high[y] / self.Q2[y]
+            self.Qc_prop_high.append(prop_high)
 
-        self.mean_prop = np.mean(self.Qc_prop)
-        self.extrapolate_f_sand()
+        self.mean_prop_mid = np.mean(self.Qc_prop_mid)
+        self.mean_prop_low = np.mean(self.Qc_prop_low)
+        self.mean_prop_high = np.mean(self.Qc_prop_high)
+
         self.add_Qc()
         self.find_Dpred()
 
-    def extrapolate_f_sand(self):
+    def get_width_model(self):
         """
-        Attribute each segment of the network with an estimate for the fraction of sand in the bed (based on reaches
-        where grain size distributions were collected. Adds field 'f_sand'.
-        :return:
+        Uses regression to obtain a model for predicting width based on drainage area and discharge
+        :param width_table: csv - column 1 header: 'DA', column 2 header: 'Q', column 3 header: 'w'
+        :return: regression model object
         """
+        table = pd.read_csv(self.width_table, sep=',', header=0)
+        table = table.dropna(axis='columns')
+        table['DA'] = np.log(table['DA'])
+        table['Q'] = np.sqrt(table['Q'])
 
-        network = gpd.read_file(self.streams)
-        network['f_sand'] = -9999
+        # width regression
+        regr = linear_model.LinearRegression()
+        regr.fit(table[['DA', 'Q']], table['w'])
+        rsq = regr.score(table[['DA', 'Q']], table['w'])
+        if rsq < 0.5:
+            print 'R-squared is less than 0.5, poor model fit'
 
-        da_values = []
-        for x in self.reach_ids:
-            da = network.loc[x, 'Drain_Area']
-            da_values.append(da)
+        return regr
 
-        df = pd.DataFrame({"SegmentID": self.reach_ids, "DA": da_values, "f_sand": self.f_sand})
+    def add_w_bf(self, model):
+        w_bf = []
+        for i in self.network.index:
+            w_inputs = np.array([np.log(self.network.loc[i, 'Drain_Area']), self.network.loc[i, 'Q2 (cms)']**0.5])
+            w_pred = model.predict([w_inputs])[0]
+            w_bf.append(w_pred)
 
-        sortedtable = df.sort_values(by='DA')
-        sortedtable = sortedtable.reset_index(drop=True)
-
-        # attribute segments upstream of measured sand fraction values with that value. Assumes f_sand decreases with
-        # decreasing drainage area
-
-        for x in sortedtable.index:
-            da = sortedtable.loc[x, 'DA']
-            for i in network.index:
-                if network.loc[i, 'Drain_Area'] <= da:
-                    if network.loc[i, 'f_sand'] == -9999:
-                        network.loc[i, 'f_sand'] = sortedtable.loc[x, 'f_sand']
-
-        # for i in network.index:
-        #     if network.loc[i, 'f_sand'] != -9999:
-        #         if network.loc[i, 'Slope'] <= 0.008:
-        #             network.loc[i, 'f_sand'] = network.loc[i, 'f_sand']*2
-
-        for i in network.index:
-            if network.loc[i, 'f_sand'] == -9999:
-                network.loc[i, 'f_sand'] = self.f_sand_default
-
-        network.to_file(self.streams)
+        self.network['w_bf'] = w_bf
+        self.network.to_file(self.streams)
 
         return
 
@@ -108,7 +116,7 @@ class Dpred:
         """
 
         # set up constants
-        om_crit_star = 0.32*self.f_sand[item]**2 - 0.24*self.f_sand[item] + 0.095
+        om_crit_star = 0.1
         g = 9.81
         rho = 1000
         rho_s = 2650
@@ -146,7 +154,7 @@ class Dpred:
         boot_medians = []
         for i in range(num_boots):
             boot = resample(gs, replace=True, n_samples=len(gs))
-            median = np.median(boot)*(-0.85*self.f_sand[item] + 1.)
+            median = np.median(boot)
             boot_medians.append(median)
         medgr = np.asarray(boot_medians)
 
@@ -162,6 +170,7 @@ class Dpred:
             Qc = numerator / denominator
 
             Qc_values.append(Qc)
+        Qc_values = np.asarray(Qc_values)
 
         meanQc = np.mean(Qc_values)
         lowQc = meanQc - (1.64 * np.std(Qc_values))
@@ -185,7 +194,7 @@ class Dpred:
         ax2.legend()
         fig.savefig(plotpath + "/" + os.path.basename(self.grain_size[item])[0:-4] + "_Qc_plot.png")
 
-        return meanQc
+        return meanQc, lowQc, highQc
 
     def add_Qc(self):  # can vectorize this
         """
@@ -196,12 +205,14 @@ class Dpred:
 
         network = gpd.read_file(self.streams)
 
-        network['Qc'] = network['Q2 (cms)']*self.mean_prop  # is this best way to extrapolate??
+        network['Qc_mid'] = network['Q2 (cms)']*self.mean_prop_mid  # is this best way to extrapolate??
+        network['Qc_low'] = network['Q2 (cms)']*self.mean_prop_low
+        network['Qc_high'] = network['Q2 (cms)']*self.mean_prop_high
 
-        #logic to reduce Qc of high DA low slope reaches
-        for i in network.index:
-            if network.loc[i, 'Drain_Area'] >= 300 and network.loc[i, 'Slope'] <= 0.008:
-                network.loc[i, 'Qc'] = network.loc[i, 'Qc'] / 4
+        # logic to reduce Qc of high DA low slope reaches
+        # for i in network.index:
+        #     if network.loc[i, 'Drain_Area'] >= 300 and network.loc[i, 'Slope'] <= 0.008:
+        #         network.loc[i, 'Qc'] = network.loc[i, 'Qc'] / 4
 
         network.to_file(self.streams)
 
@@ -220,19 +231,29 @@ class Dpred:
         g = 9.81
         rho_s = 2650
 
-        Qc = network['Qc']
-        S = network['Slope']
+        Qc_mid = network['Qc_mid']
+        Qc_low = network['Qc_low']
+        Qc_high = network['Qc_high']
+        S = network['Slope_mid']
         w = network['w_bf']
-        om_crit_star = 0.32*network['f_sand']**2 - 0.24*network['f_sand'] + 0.095
+        om_crit_star = 0.08  # fixed or make param?
 
-        om_crit = (rho * g * Qc * S) / w  # this should probably be ACTIVE channel width
+        om_crit_mid = (rho * g * Qc_mid * S) / w  # this should probably be ACTIVE channel width
+        om_crit_low = (rho * g * Qc_low * S) / w
+        om_crit_high = (rho * g * Qc_high * S) / w
 
-        numerator = (om_crit / om_crit_star) ** 2
+        numerator_mid = (om_crit_mid / om_crit_star) ** 2
+        numerator_low = (om_crit_low / om_crit_star) ** 2
+        numerator_high = (om_crit_high / om_crit_star) ** 2
         denominator = ((g * (rho - rho_s)) ** 2) * (((rho_s / rho) - 1) * g)
 
-        Dpred = ((numerator / denominator) ** (1. / 3.)) * 1000.
+        Dpred_mid = ((numerator_mid / denominator) ** (1. / 3.)) * 1000.
+        Dpred_low = ((numerator_low / denominator) ** (1. / 3.)) * 1000.
+        Dpred_high = ((numerator_high / denominator) ** (1. / 3.)) * 1000.
 
-        network['D_pred'] = Dpred * (-0.85 * network['f_sand'] + 1)  # this equation for reducing D50 based on sand probably isnt good enough
+        network['D_pred_mid'] = Dpred_mid  # * (-0.85 * network['f_sand'] + 1)  # this equation for reducing D50 based on sand probably isnt good enough
+        network['D_pred_low'] = Dpred_low  # * (-0.85 * network['f_sand'] + 1)
+        network['D_pred_high'] = Dpred_high  # * (-0.85 * network['f_sand'] + 1)
 
         network.to_file(self.streams)
 

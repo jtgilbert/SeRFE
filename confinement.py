@@ -113,18 +113,6 @@ class Confinement:
 
         return
 
-    def update_width(self):
-
-        network = gpd.read_file(self.streams)
-
-        for i in network.index:
-            if network.loc[i, 'confine'] == 1.:
-                network.loc[i, 'w_flood'] = network.loc[i, 'w_bf']
-
-        network.to_file(self.streams)
-
-        return
-
     def update_area(self):
 
         network = gpd.read_file(self.streams)

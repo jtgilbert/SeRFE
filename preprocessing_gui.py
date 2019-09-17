@@ -5,7 +5,6 @@ from watershed_dem import watershed_dem
 from drainage_area import drain_area
 from network_topology import NetworkTopology
 from network_attributes import add_da, add_slope
-from channel_width import get_width_params, add_w
 
 # from network_topology import network_topology
 
@@ -38,7 +37,6 @@ class TopologyTool(QtGui.QMainWindow, design_preprocessing.Ui_MainWindow):
         self.btnNetwork_tab4.clicked.connect(lambda: self.file_browser(self.txtNetwork_tab4))
         self.btnDEM_tab4.clicked.connect(lambda: self.file_browser(self.txtDEM_tab4))
         self.btnDA_tab4.clicked.connect(lambda: self.file_browser(self.txtDA_tab4))
-        self.btnWidthTable_tab4.clicked.connect(lambda: self.file_browser(self.txtWidthTable_tab4))
         self.btnCancel_tab4.clicked.connect(self.close)
         self.btnOk_tab4.clicked.connect(self.attributes)
 
@@ -75,12 +73,9 @@ class TopologyTool(QtGui.QMainWindow, design_preprocessing.Ui_MainWindow):
         network = str(self.txtNetwork_tab4.text())
         dem = str(self.txtDEM_tab4.text())
         drarea = str(self.txtDA_tab4.text())
-        width_table = str(self.txtWidthTable_tab4.text())
         epsg = int(self.txtEpsg_tab4.text())
         add_da(network, drarea, epsg)
         add_slope(network, dem, epsg)
-        a_low, b_low, a_bf, b_bf, a_flood, b_flood = get_width_params(width_table)
-        add_w(network, a_low, b_low, a_bf, b_bf, a_flood, b_flood, epsg)
         self.close()
 
 

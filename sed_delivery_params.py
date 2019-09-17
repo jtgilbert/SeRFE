@@ -87,15 +87,3 @@ class SedDeliveryParams:
 
         return
 
-
-# # # run get sediment delivery parameters class
-wd = 'Piru/'
-dem = wd + 'DEM_10m_Piru.tif'
-slope_out = wd + 'slope.tif'
-network = wd + 'Piru_network_1km.shp'
-neighborhood = 500
-g_min = 1
-g_max = 3.5
-g_scale = 0.3
-
-SedDeliveryParams(dem, slope_out, network, neighborhood, g_min, g_max, g_scale)
