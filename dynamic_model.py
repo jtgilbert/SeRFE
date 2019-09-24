@@ -340,7 +340,10 @@ class SerfeModel:
                 delta_h = ((channel_store - prev_ch_store_min) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
 
-            csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min)
+            if (qs_channel + qs_us_min + prev_ch_store_min) == 0:
+                csr = 100.
+            else:
+                csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min)), 100.)
 
         elif cap_min > (qs_channel + qs_us_min + prev_ch_store_min):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
@@ -354,14 +357,21 @@ class SerfeModel:
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
                 fp_thick_min = fp_thick_min - fp_recr_thick
 
-                csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min + fp_recr)
+                if (qs_channel + qs_us_min + prev_ch_store_min + fp_recr) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min + fp_recr)), 100.)
 
             else:  # segment is confined
                 channel_store = 0.
                 delta_h = ((channel_store - prev_ch_store_min) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
                 qs_out = (qs_channel + qs_us_min + prev_ch_store_min)
-                csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min)
+
+                if (qs_channel + qs_us_min + prev_ch_store_min) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min)), 100.)
 
         else:  # sediment load equals transport capacity
             qs_out = qs_channel + qs_us_min + prev_ch_store_min
@@ -414,7 +424,10 @@ class SerfeModel:
                 delta_h = ((channel_store - prev_ch_store_mid) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
 
-            csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)
+            if (qs_channel + qs_us_mid + prev_ch_store_mid) == 0:
+                csr = 100.
+            else:
+                csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)), 100.)
 
         elif cap_mid > (qs_channel + qs_us_mid + prev_ch_store_mid):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
@@ -428,14 +441,21 @@ class SerfeModel:
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
                 fp_thick_mid = fp_thick_mid - fp_recr_thick
 
-                csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr)
+                if (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr)), 100.)
 
             else:  # segment is confined
                 channel_store = 0.
                 delta_h = ((channel_store - prev_ch_store_mid) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
                 qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid)
-                csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)
+
+                if (qs_channel + qs_us_mid + prev_ch_store_mid) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)), 100.)
 
         else:  # sediment load equals transport capacity
             qs_out = qs_channel + qs_us_mid + prev_ch_store_mid
@@ -487,7 +507,10 @@ class SerfeModel:
                 delta_h = ((channel_store - prev_ch_store_max) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
 
-            csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max)
+            if (qs_channel + qs_us_max + prev_ch_store_max) == 0:
+                csr = 100.
+            else:
+                csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max)), 100.)
 
         elif cap_max > (qs_channel + qs_us_max + prev_ch_store_max):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
@@ -501,14 +524,21 @@ class SerfeModel:
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
                 fp_thick_max = fp_thick_max - fp_recr_thick
 
-                csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max + fp_recr)
+                if (qs_channel + qs_us_max + prev_ch_store_max + fp_recr) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max + fp_recr)), 100.)
 
             else:  # segment is confined
                 channel_store = 0.
                 delta_h = ((channel_store - prev_ch_store_max) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                 self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
                 qs_out = (qs_channel + qs_us_max + prev_ch_store_max)
-                csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max)
+
+                if (qs_channel + qs_us_max + prev_ch_store_max) == 0:
+                    csr = 100.
+                else:
+                    csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max)), 100.)
 
         else:  # sediment load equals transport capacity
             qs_out = qs_channel + qs_us_mid + prev_ch_store_mid

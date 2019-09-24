@@ -223,15 +223,15 @@ class Stats:
         return np.mean(series)
 
 
-#inst = Visualizations('SP/outputs/sp_out_2017_nofire.csv', 'SP/outputs/sp_nofire_2017.shp', 'SP/SP_hydrographs_2017.csv')
+inst = Visualizations('Piru/outputs/piru_out_nospinup.csv', 'Piru/outputs/piru_nospinup.shp', 'Piru/Piru_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-#inst.plot_csr_time_series()
-#inst.plot_storage(39)
+#inst.plot_csr_time_series(301)
+inst.plot_storage(204)
 #inst.plot_time_series(519, 'Q')
-#inst.date_fig(300, 'CSR_mid', save=False)
+#inst.date_fig(232, 'CSR_mid', save=True)
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')
 #print inst2.seg_mean(17, 'CSR')

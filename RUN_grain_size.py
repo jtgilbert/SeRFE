@@ -2,12 +2,12 @@
 import class_D
 
 # directory
-dir = 'SP/'
+dir = 'Piru/'
 
 # Inputs - fill in
-network = dir + 'SP_network_500m.shp'  # name and extension of drainage network shapefile
-grainsize = [dir + 'sp_d2.csv']  # list of csv's containing grain size measurements
-reachids = [16]  # list of reach IDs for associated grain size measurements above
+network = dir + 'Piru_network_1km.shp'  # name and extension of drainage network shapefile
+grainsize = [dir + 'bluepoint_d_synth.csv']  # list of csv's containing grain size measurements
+reachids = [56]  # list of reach IDs for associated grain size measurements above
 width_table = dir + 'SC_width_table.csv'  # csv with channel width information; column headers: 'DA', 'Q', and 'w'
 
 # run model

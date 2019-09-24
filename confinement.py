@@ -121,6 +121,9 @@ class Confinement:
             if network.loc[i, 'confine'] == 1.:
                 network.loc[i, 'fp_area'] = 0.
 
+            if network.loc[i, 'fp_area'] == 0.:
+                network.loc[i, 'confine'] = 1.
+
         network.to_file(self.streams)
 
         return

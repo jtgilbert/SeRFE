@@ -4,19 +4,19 @@ import geopandas as gpd
 import Visualizations
 
 # directory
-dir = 'SP/'
+dir = 'Piru/'
 
 
 # Inputs - fill these in
-hydrograph = dir + 'SP_hydrographs_2017.csv'  # name and extension of csv file with hydrograph information filled in
+hydrograph = dir + 'Piru_hydrographs.csv'  # name and extension of csv file with hydrograph information filled in
 width_table = dir + 'SC_width_table.csv'  # .csv file with drainage area, discharge and width measurements
 flow_exp = 0.84  # discharge-drainage area relationship exponent (can be found in plot produced from hydrology tool)
-network = dir + 'SP_network_500m.shp'  # name and extension of drainage network shapefile
-mannings_min = 0.045  # minimum Manning's n value for the basin (fine-grained reaches)
-mannings_max = 0.06  # maximum Manning's n value for the basin (course-grained reaches)
+network = dir + 'Piru_network_1km.shp'  # name and extension of drainage network shapefile
+mannings_min = 0.03  # minimum Manning's n value for the basin (fine-grained reaches)
+mannings_max = 0.055  # maximum Manning's n value for the basin (course-grained reaches)
 bulk_density = 1.2  # average or estimated sediment bulk density in the basin
 
-outdf = dir + 'sp_out_2017_fire.csv'  # name and extension for storing output dataframe
+outdf = dir + 'piru_out_nospinup.csv'  # name and extension for storing output dataframe
 spinup = False  # True if running a spinup period in which floodplain height and slope values are updated without
                 # saving any outputs. False if running model to store outputs
 

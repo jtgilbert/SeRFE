@@ -54,6 +54,8 @@ class Disturbances:
                 self.network.loc[i, 'dist_g_sh'] = -9999
                 self.network.loc[i, 'dist_g_sc'] = -9999
 
+        self.network.to_file(self.streams)
+
     def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None):
         """
         Run separately for things that change effective da (e.g. dams) and
