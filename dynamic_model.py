@@ -292,23 +292,23 @@ class SerfeModel:
         if excess_sp_min <= 0:
             mig_rate_min = 0
         else:
-            b1 = sp_crit_min*1.2  # 1.2 is soil critical sp param
-            b0 = -8.89e-7 + 1.19e-8*b1 + 9.04e-7*self.network.loc[segid, 'Sinuos']
-            mig_rate_min = ((b0 * excess_sp_min**0.5) / self.bulk_dens) * (1-exp(-exp(3-(b1/excess_sp_min))))
+            wc = sp_crit_min*1.2  # 1.2 is soil critical sp param
+            k = -6.048e-7 + 5.52e-8*wc + 5.95e-7*self.network.loc[segid, 'Sinuos']
+            mig_rate_min = k*excess_sp_min**0.75
         excess_sp_mid = float(((9810*flow*S_mid)/w) - sp_crit_mid)
         if excess_sp_mid <= 0:
             mig_rate_mid = 0
         else:
-            b1 = sp_crit_mid * 1.2
-            b0 = -8.89e-7 + 1.19e-8*b1 + 9.04e-7*self.network.loc[segid, 'Sinuos']
-            mig_rate_mid = ((b0 * excess_sp_mid**0.5) / self.bulk_dens) * (1-exp(-exp(3-(b1/excess_sp_mid))))
+            wc = sp_crit_mid * 1.2
+            k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
+            mig_rate_mid = k*excess_sp_mid**0.75
         excess_sp_max = float(((9810*flow*S_max)/w) - sp_crit_max)
         if excess_sp_max <= 0:
             mig_rate_max = 0
         else:
-            b1 = sp_crit_max * 1.2
-            b0 = -8.89e-7 + 1.19e-8 * b1 + 9.04e-7 * self.network.loc[segid, 'Sinuos']
-            mig_rate_max = ((b0 * excess_sp_max**0.5) / self.bulk_dens) * (1-exp(-exp(3-(b1/excess_sp_max))))
+            wc = sp_crit_max * 1.2
+            k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
+            mig_rate_max = k*excess_sp_max**0.75
 
         if time == 1:
             prev_ch_store_min, prev_ch_store_mid, prev_ch_store_max = 0., 0., 0.
@@ -690,6 +690,12 @@ class SerfeModel:
             # reset denude rates to -9999, do I need to do this or will it just overwrite?
 
         if spinup:
+            for i in self.network.index:
+                self.network.loc[i, 'Slope_min'] = self.network.loc[i, 'Slope_mid']
+                self.network.loc[i, 'Slope_max'] = self.network.loc[i, 'Slope_mid']
+                self.network.loc[i, 'fpt_min'] = self.network.loc[i, 'fpt_mid']
+                self.network.loc[i, 'fpt_max'] = self.network.loc[i, 'fpt_mid']
+
             self.network.to_file(self.streams)
 
             return None

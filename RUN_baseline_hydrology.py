@@ -2,10 +2,10 @@
 import class_Q
 
 # directory where data is stored,
-dir = 'Piru/'
+dir = 'SP/'
 
 # Inputs - fill in with the name and extension of input drainage network
-network = dir + 'Piru_network_1km.shp'  # shapefile
+network = dir + 'SP_network_500m.shp'  # shapefile
 Q2_table = dir + 'reference_Q2.csv'  # csv
 
 # Run Model - do not alter anything below this point

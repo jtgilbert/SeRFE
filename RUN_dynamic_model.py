@@ -12,11 +12,11 @@ hydrograph = dir + 'Piru_hydrographs.csv'  # name and extension of csv file with
 width_table = dir + 'SC_width_table.csv'  # .csv file with drainage area, discharge and width measurements
 flow_exp = 0.84  # discharge-drainage area relationship exponent (can be found in plot produced from hydrology tool)
 network = dir + 'Piru_network_1km.shp'  # name and extension of drainage network shapefile
-mannings_min = 0.03  # minimum Manning's n value for the basin (fine-grained reaches)
-mannings_max = 0.055  # maximum Manning's n value for the basin (course-grained reaches)
+mannings_min = 0.035  # minimum Manning's n value for the basin (fine-grained reaches)
+mannings_max = 0.06  # maximum Manning's n value for the basin (course-grained reaches)
 bulk_density = 1.2  # average or estimated sediment bulk density in the basin
 
-outdf = dir + 'piru_out_nospinup.csv'  # name and extension for storing output dataframe
+outdf = dir + 'piru_out_101019.csv'  # name and extension for storing output dataframe
 spinup = False  # True if running a spinup period in which floodplain height and slope values are updated without
                 # saving any outputs. False if running model to store outputs
 

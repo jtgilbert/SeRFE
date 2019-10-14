@@ -2,10 +2,10 @@
 import disturbance
 
 # directory
-dir = 'Piru/'
+dir = 'SC/'
 
 # stream network - fill in name and extension of drainage network shapefile
-network = dir + 'Piru_network_1km.shp'
+network = dir + 'SC_network_1km.shp'
 
 # ADD DISTURBANCES
 

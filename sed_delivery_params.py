@@ -9,15 +9,15 @@ from rasterstats import zonal_stats
 
 class SedDeliveryParams:
 
-    def __init__(self, dem, slope_out, network, neighborhood, g_min, g_max, g_scale, calc_slope=False):
+    def __init__(self, dem, slope_out, network, neighborhood, g_shape, g_scale_min, g_scale_max, calc_slope=False):
         self.dem = dem
         self.slope_out = slope_out
         self.dn = gpd.read_file(network)
         self.streams = network
         self.neighborhood = neighborhood
-        self.g_min = g_min
-        self.g_max = g_max
-        self.g_scale = g_scale
+        self.g_shape = g_shape
+        self.g_scale_min = g_scale_min
+        self.g_scale_max = g_scale_max
 
         if calc_slope is True:
             self.slope()
@@ -74,14 +74,14 @@ class SedDeliveryParams:
 
             ave_slope.append(mean)
 
-        l_slope = (self.g_max - self.g_min)/(max(ave_slope) - min(ave_slope))
-        g_shape = []
+        l_slope = (self.g_scale_max - self.g_scale_min)/(max(ave_slope) - min(ave_slope))
+        g_scale = []
         for i in range(len(ave_slope)):
-            g = ave_slope[i] * l_slope + self.g_min
-            g_shape.append(g)
+            g = ave_slope[i] * l_slope + self.g_scale_min
+            g_scale.append(g)
 
-        self.dn['g_shape'] = g_shape
-        self.dn['g_scale'] = self.g_scale
+        self.dn['g_shape'] = self.g_shape
+        self.dn['g_scale'] = g_scale
 
         self.dn.to_file(self.streams)
 
