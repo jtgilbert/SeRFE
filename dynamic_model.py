@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import network_topology as nt
 from sklearn import linear_model
-from math import exp
 
 
 class SerfeModel:
@@ -22,6 +21,7 @@ class SerfeModel:
         :param tl_factor: a total load factor to convert bedload transport capacity into total load transport capacity
         """
 
+        print 'initiating model'
         self.hydrographs = pd.read_csv(hydrograph, index_col='Gage')
         self.flow_exp = flow_exp  # need the b in the equation for flow~DA so that you can recalculate a at each time step
         self.network = gpd.read_file(network)
@@ -30,6 +30,22 @@ class SerfeModel:
         self.streams = network
 
         self.nt = nt.TopologyTools(network)
+
+        # append column to hydrographs indicating whether each gage has a gage downstream of it
+        gage_ds = []
+        for gage in self.hydrographs.index:
+            if self.hydrographs.loc[gage, 'segid'] == -9999:
+                gage_ds.append(0)
+            else:
+                ds_segs = self.nt.find_all_ds(self.hydrographs.loc[gage, 'segid'])
+                if len(set(ds_segs) & set(self.hydrographs['segid'])) > 0:
+                    gage_ds.append(1)
+                else:
+                    gage_ds.append(0)
+        self.hydrographs['gage_ds'] = gage_ds
+
+        # list of lists of upstream segments of each segment
+        self.us_segs = [self.nt.find_all_us(i) for i in self.network.index]
 
         # call model for predicting channel width
         self.width = self.get_width_model(width_table)
@@ -40,15 +56,6 @@ class SerfeModel:
         d_max = np.max(d_vals)
         self.mannings_slope = (self.mannings_n[1] - self.mannings_n[0]) / (d_max - d_min)
         self.mannings_intercept = self.mannings_slope*-d_max + self.mannings_n[1]
-
-        # subset of hydrographs above dams
-        segs_ab_dams = []
-        for x in self.hydrographs.index:
-            print x
-            if round(self.network.loc[self.hydrographs.loc[x, 'segid'], 'Drain_Area']) == round(self.network.loc[self.hydrographs.loc[x, 'segid'], 'eff_DA']):
-                segs_ab_dams.append(self.hydrographs.loc[x, 'segid'])
-
-        self.hyd_ab_dams = self.hydrographs[self.hydrographs['segid'].isin(segs_ab_dams)]
 
         # obtain number of time steps for output table
         time = np.arange(1, self.hydrographs.shape[1]-3, 1, dtype=np.int)
@@ -100,37 +107,37 @@ class SerfeModel:
 
         return a
 
-    def find_nearest_gage(self, segid, above_dams=False):
-        """
-        Finds the nearest gage to a given stream segment
-        :param segid: segment ID
-        :param above_dams: boolean - is the gage above all dams?
-        :return: the ID of the nearest gage
-        """
-        seg_geom = self.network.loc[segid, 'geometry']
-        x_coord = seg_geom.boundary[0].xy[0][0]
-        y_coord = seg_geom.boundary[0].xy[1][0]
+    def get_flow(self, segid, time):
 
-        if above_dams is False:
-            dist = []
-            for x in self.hydrographs.index:
-                d = np.sqrt((x_coord-self.hydrographs.loc[x, 'Easting'])**2 + (y_coord-self.hydrographs.loc[x, 'Northing'])**2)
-                dist.append(d)
-            min_dist = min(dist)
-            for z in range(len(dist)):
-                if dist[z] == min_dist:
-                    gage = self.hydrographs.index[z]
+        if len(self.hydrographs) > 1:
+            Q = []
+            eff_da = []
+
+            for i in self.hydrographs.index:
+                if self.hydrographs.loc[i, 'segid'] in self.us_segs[segid]:
+                    if self.hydrographs.loc[i, 'gage_ds'] == 0:
+                        Q.append(self.hydrographs.loc[i, str(time)])
+                        eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
+
+            ur = self.hydrographs[self.hydrographs['regulated'] == 0]
+            coefs = []
+            for x in ur.index:
+                coefs.append(self.find_flow_coef(ur.loc[x, str(time)], ur.loc[x, 'DA']))
+
+            if len(Q) == 0:
+                Q = [0]
+            if len(coefs) == 0:
+                coefs = [0]
+
+            eff_da = self.network.loc[segid, 'eff_DA'] - np.sum(eff_da)
+
+            flow = np.sum(Q) + np.average(coefs)*eff_da**self.flow_exp
+
         else:
-            dist = []
-            for y in self.hyd_ab_dams.index:
-                d = np.sqrt((x_coord-self.hyd_ab_dams.loc[y, 'Easting'])**2 + (y_coord-self.hyd_ab_dams.loc[y, 'Northing'])**2)
-                dist.append(d)
-            min_dist = np.min(dist)
-            for z in range(len(dist)):
-                if dist[z] == min_dist:
-                    gage = self.hyd_ab_dams.index[z]
+            coef = self.find_flow_coef(self.hydrographs.loc[self.hydrographs.index[0], str(time)], self.hydrographs.loc[self.hydrographs.index[0], 'DA'])
+            flow = coef * self.network.loc[segid, 'eff_DA']**self.flow_exp
 
-        return gage
+        return flow
 
     def get_upstream_qs(self, time, segid):
         """
@@ -173,6 +180,8 @@ class SerfeModel:
 
         # calculate delivery from denudation rate
         hillslope_da = self.network.loc[segid, 'direct_DA'] - (self.network.loc[segid, 'fp_area']/1000000.)
+        if hillslope_da < 0:
+            hillslope_da = self.network.loc[segid, 'direct_DA']*0.5
         vol_sed = ((self.network.loc[segid, 'denude']/1000.)/365.)*(hillslope_da*1000000.)  # m^3; assumes daily time step
         dir_qs = vol_sed * sed_density
 
@@ -196,7 +205,7 @@ class SerfeModel:
         # determine if stream power exceeds critical threshold
         om = (rho * g * Q * S) / w
 
-        if om >= om_crit:
+        if om > om_crit:
             rate_tot = 0.0214 * (om - om_crit) ** (3. / 2.) * D ** (-1) * (Q / w) ** (-5. / 6.)  # Lammers et al total load equation (tonnes)
             cap_tot = (Q * 86400) * (rate_tot / 1000000.) * 2.6  # convert ppm to tonnes/day
             rate_bl = 0.000143 * (om - om_crit) ** (3. / 2.) * D ** (-0.5) * (Q / w) ** (-0.5)
@@ -207,7 +216,7 @@ class SerfeModel:
 
         return cap_tot  # add in bl stuff later
 
-    def apply_to_reach(self, segid, time, gage):
+    def apply_to_reach(self, segid, time):  # , gage):
         """
         applies the SeRFE logic to a given reach
         :param segid: segment ID
@@ -215,29 +224,18 @@ class SerfeModel:
         :param gage: gage ID
         :return:
         """
-        # above dams, simple flow calc
-        if self.network.loc[segid, 'eff_DA'] == self.network.loc[segid, 'Drain_Area']:
-            flow_coef = self.find_flow_coef(self.hydrographs.loc[gage, str(time)], self.hydrographs.loc[gage, 'DA'])
-            flow = flow_coef * self.network.loc[segid, 'Drain_Area']**self.flow_exp
-        # below dams find gage above dams for equn then add dam flow.
-        else:  # segid['eff_DA'] != segid['Drain_Area']:
-            q_t = self.hydrographs.loc[gage, str(time)]
-            gage2 = self.find_nearest_gage(segid, above_dams=True)
-            flow_coef = self.find_flow_coef(self.hyd_ab_dams.loc[gage2, str(time)], self.hyd_ab_dams.loc[gage2, 'DA'])
-            flow = (flow_coef * self.network.loc[segid, 'eff_DA']**self.flow_exp) + q_t
 
-        # set flow threshold; < 0.2 cfs goes to 0
-        if flow < 0.0055:
-            flow = 0.
+        # get flow at reach at given time step
+        flow = self.get_flow(segid, time)
 
         # get channel width of reach at given time step
         da = np.log(self.network.loc[segid, 'Drain_Area'])
         q = np.sqrt(flow)
         w_inputs = np.array([da, q])  # set minimum?
-        w = max(self.width.predict([w_inputs])[0], 1)
+        w = max(self.width.predict([w_inputs])[0], 0.5)  # 0.5 m min width
         if self.network.loc[segid, 'confine'] == 1:
             if w > self.network.loc[segid, 'w_bf']:
-                w = self.network.loc[segid, 'w_bf']  # might need to add logic for minimum width too to avoid w<0
+                w = self.network.loc[segid, 'w_bf']
 
         # mannings n calculation of depth
         n = self.network.loc[segid, 'D_pred_mid'] * self.mannings_slope + self.mannings_intercept
@@ -347,7 +345,7 @@ class SerfeModel:
 
         elif cap_min > (qs_channel + qs_us_min + prev_ch_store_min):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = (mig_rate_min*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_min * self.bulk_dens  # set up as 1 DAY TIME STEP
+                fp_recr = min((mig_rate_min*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_min * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_min']*self.bulk_dens)  # set up as 1 DAY TIME STEP
                 qs_out = (qs_channel + qs_us_min + prev_ch_store_min) + fp_recr
                 fp_store_min = fp_store_min - fp_recr
                 channel_store = 0.
@@ -355,7 +353,7 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
                 # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_min = fp_thick_min - fp_recr_thick
+                fp_thick_min = max(0, fp_thick_min - fp_recr_thick)
 
                 if (qs_channel + qs_us_min + prev_ch_store_min + fp_recr) == 0:
                     csr = 100.
@@ -431,7 +429,7 @@ class SerfeModel:
 
         elif cap_mid > (qs_channel + qs_us_mid + prev_ch_store_mid):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = (mig_rate_mid*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_mid * self.bulk_dens
+                fp_recr = min((mig_rate_mid*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_mid * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_mid']*self.bulk_dens)
                 qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid) + fp_recr
                 fp_store_mid = fp_store_mid - fp_recr
                 channel_store = 0.
@@ -439,7 +437,7 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
                 # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_mid = fp_thick_mid - fp_recr_thick
+                fp_thick_mid = max(0, fp_thick_mid - fp_recr_thick)
 
                 if (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr) == 0:
                     csr = 100.
@@ -514,7 +512,7 @@ class SerfeModel:
 
         elif cap_max > (qs_channel + qs_us_max + prev_ch_store_max):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = (mig_rate_max*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_max * self.bulk_dens
+                fp_recr = min((mig_rate_max*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_max * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_max']*self.bulk_dens)
                 qs_out = (qs_channel + qs_us_max + prev_ch_store_max) + fp_recr
                 fp_store_max = fp_store_max - fp_recr
                 channel_store = 0.
@@ -522,7 +520,7 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
                 # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
                 fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_max = fp_thick_max - fp_recr_thick
+                fp_thick_max = max(0, fp_thick_max - fp_recr_thick)
 
                 if (qs_channel + qs_us_max + prev_ch_store_max + fp_recr) == 0:
                     csr = 100.
@@ -577,21 +575,16 @@ class SerfeModel:
         """
         seg = self.nt.seg_id_from_rid('1.1')
         time = time
-        gage = self.find_nearest_gage(seg)
 
         while seg is not None:
-            self.apply_to_reach(seg, time, gage)
+            self.apply_to_reach(seg, time)
 
             next_reach = self.nt.get_next_reach(seg)
 
             if next_reach is not None:
-                if self.network.loc[next_reach, 'confluence'] == 0:
-                    if self.network.loc[next_reach, 'eff_DA'] < self.network.loc[seg, 'eff_DA']:
-                        gage = self.find_nearest_gage(next_reach)  # dam impacted
-                    else:
-                        pass
-                else:
+                if self.network.loc[next_reach, 'confluence'] == 1:
                     next_reach = self.nt.get_next_chain(next_reach)
+
             else:
                 next_reach = self.nt.get_next_chain(seg)
 
@@ -627,21 +620,17 @@ class SerfeModel:
                     pass
                 else:
                     time = time
-                    hyd = self.find_nearest_gage(seg)  # may change this to just be the same as its upstream segment... (stored in outdf)
 
                     while seg is not None:
-                        self.apply_to_reach(seg, time, hyd)
+                        self.apply_to_reach(seg, time)
 
                         next_reach = self.nt.get_next_reach(seg)
 
                         if next_reach is not None:
-                            if self.network.loc[next_reach, 'confluence'] == 0:
-                                if self.network.loc[next_reach, 'eff_DA'] < self.network.loc[seg, 'eff_DA']:
-                                    hyd = self.find_nearest_gage(next_reach)
-                                else:
-                                    pass
-                            else:
+                            if self.network.loc[next_reach, 'confluence'] == 1:
                                 next_reach = None
+                            else:
+                                pass
                         else:
                             pass
 
@@ -657,7 +646,7 @@ class SerfeModel:
         :param spinup: boolean - True of running spinup period, False if saving outputs
         :return: a dataframe with two index columns (Segment ID and time step) containing model outputs for each segment
         """
-        total_t = self.hydrographs.shape[1]-5
+        total_t = self.hydrographs.shape[1]-4
         time = 1
 
         while time <= total_t:
