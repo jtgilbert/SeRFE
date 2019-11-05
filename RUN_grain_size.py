@@ -1,5 +1,5 @@
 # imports
-import class_D
+from Scripts import class_D
 
 # directory
 dir = 'SC/'

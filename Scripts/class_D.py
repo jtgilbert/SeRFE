@@ -139,7 +139,7 @@ class Dpred:
         plt.ylabel('% Finer')
         plt.grid(color='lightgrey')
         plt.legend(loc=4)
-        fig.suptitle('Gravel fraction')
+        fig.suptitle('Grain size')
         fig.savefig(plotpath + "/" + plotname, dpi=150)
 
         # subset grain size array to remove high outliers

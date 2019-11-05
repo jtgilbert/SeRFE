@@ -1,5 +1,5 @@
 # imports
-import disturbance
+from Scripts import disturbance
 
 # directory
 dir = 'SC/'

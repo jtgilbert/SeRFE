@@ -35,8 +35,8 @@ class Visualizations:
         ax.plot(self.df.index.levels[0][:-1], series_max, linewidth=3, linestyle='dashed', color='blue')
         ax.tick_params(axis='both', which='major', labelsize=16)
         ax.axhline(1, linestyle='dashed', color='k')
-        ax.set_xlabel('Time Step', fontsize=16)
-        ax.set_ylabel('CSR', fontsize=16)
+        ax.set_xlabel('Time Step', fontsize=20)
+        ax.set_ylabel('CSR', fontsize=20)
         ax.set_title("Segment {0}".format(seg), fontsize=20, fontweight='bold')
         plt.show()
 
@@ -100,18 +100,18 @@ class Visualizations:
             series_fp_max.append(val_fp_max)
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(self.df.index.levels[0][0:-1], series_mid1, linewidth=3, color='g', label='total_storage (mid)')
-        ax.plot(self.df.index.levels[0][0:-1], series_min1, linestyle=':', linewidth=3, color='g', label='min')
-        ax.plot(self.df.index.levels[0][0:-1], series_max1, linestyle='dashed', linewidth=3, color='g', label='max')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_mid, linewidth=3, color='c', label='floodplain (mid)')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_min, linestyle=':', linewidth=3, color='c', label='min')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_max, linestyle='dashed', linewidth=3, color='c', label='max')
+        ax.plot(self.df.index.levels[0][0:-1], series_mid1, linewidth=3, color='g', label='total_storage')
+        ax.plot(self.df.index.levels[0][0:-1], series_min1, linestyle=':', linewidth=3, color='g', label='prediction interval')
+        ax.plot(self.df.index.levels[0][0:-1], series_max1, linestyle=':', linewidth=3, color='g', label='_nolabel_')
+        ax.plot(self.df.index.levels[0][0:-1], series_fp_mid, linewidth=3, color='c', label='floodplain storage')
+        ax.plot(self.df.index.levels[0][0:-1], series_fp_min, linestyle=':', linewidth=3, color='c', label='prediction_interval')
+        ax.plot(self.df.index.levels[0][0:-1], series_fp_max, linestyle=':', linewidth=3, color='c', label='_nolabel_')
         ax.tick_params(axis='both', which='major', labelsize=16)
         ax.axhline(series_mid1[0], linestyle='dashed', color='k', label='Initial value')
-        ax.set_xlabel('Time Step', fontsize=16)
-        ax.set_ylabel('Storage (tonnes)', fontsize=16)
+        ax.set_xlabel('Time Step', fontsize=20)
+        ax.set_ylabel('Storage (tonnes)', fontsize=20)
         ax.set_title("Segment {0}: Sediment Storage".format(seg), fontsize=20, fontweight='bold')
-        ax.legend(fontsize=14)
+        ax.legend(fontsize=16)
         plt.show()
 
         return
@@ -187,16 +187,16 @@ class Visualizations:
             tot_mid = []
             tot_max = []
             for x in self.df.index.levels[0]:
-                val_min = self.df.loc[(x, i), 'CSR_min'] - 1
+                val_min = self.df.loc[(x, i), 'CSR_min']
                 tot_min.append(val_min)
-                val_mid = self.df.loc[(x, i), 'CSR_mid'] - 1
+                val_mid = self.df.loc[(x, i), 'CSR_mid']
                 tot_mid.append(val_mid)
-                val_max = self.df.loc[(x, i), 'CSR_max'] - 1
+                val_max = self.df.loc[(x, i), 'CSR_max']
                 tot_max.append(val_max)
 
-            self.network.loc[i, 'CSR_min'] = np.sum(tot_min)/365
-            self.network.loc[i, 'CSR_mid'] = np.sum(tot_mid)/365
-            self.network.loc[i, 'CSR_max'] = np.sum(tot_max)/365
+            self.network.loc[i, 'CSR_min'] = np.sum(tot_min)/len(self.df.index.levels[0])
+            self.network.loc[i, 'CSR_mid'] = np.sum(tot_mid)/len(self.df.index.levels[0])
+            self.network.loc[i, 'CSR_max'] = np.sum(tot_max)/len(self.df.index.levels[0])
 
         self.network.to_file(self.streams)
 
@@ -223,14 +223,14 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('SC/sc_out_101619_2.csv', 'SC/SC_network_subset2.shp', 'SC/SC_hydrographs_new.csv')
+inst = Visualizations('Piru/piru_out_103019.csv', 'Piru/Piru_network_1km.shp', 'Piru/Piru_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-#inst.plot_csr_time_series(8)
-inst.plot_storage(140)
-#inst.plot_time_series(6, 'Q')
+inst.plot_csr_time_series(131)
+inst.plot_storage(131)
+#inst.plot_time_series(130, 'Q')
 #inst.date_fig(293, 'CSR_max', save=True)
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')

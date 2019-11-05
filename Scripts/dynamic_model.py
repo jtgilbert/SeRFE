@@ -31,7 +31,7 @@ class SerfeModel:
 
         self.nt = nt.TopologyTools(network)
 
-        # append column to hydrographs indicating whether each gage has a gage downstream of it
+        # append column to hydrographs indicating what other gages are downstream of it
         gage_ds = []
         for gage in self.hydrographs.index:
             if self.hydrographs.loc[gage, 'segid'] == -9999:
@@ -39,23 +39,22 @@ class SerfeModel:
             else:
                 ds_segs = self.nt.find_all_ds(self.hydrographs.loc[gage, 'segid'])
                 if len(set(ds_segs) & set(self.hydrographs['segid'])) > 0:
-                    gage_ds.append(1)
+                    gage_ds.append(len(set(ds_segs) & set(self.hydrographs['segid'])))
                 else:
                     gage_ds.append(0)
         self.hydrographs['gage_ds'] = gage_ds
 
+        print 'storing topology info'
         # list of lists of upstream segments of each segment
         self.us_segs = [self.nt.find_all_us(i) for i in self.network.index]
+        self.ds_segs = [self.nt.find_all_ds(i) for i in self.network.index]
 
         # call model for predicting channel width
         self.width = self.get_width_model(width_table)
 
         # set up manning's n calculation (linear function of grain size)
-        d_vals = self.network['D_pred_mid']
-        d_min = np.min(d_vals)
-        d_max = np.max(d_vals)
-        self.mannings_slope = (self.mannings_n[1] - self.mannings_n[0]) / (d_max - d_min)
-        self.mannings_intercept = self.mannings_slope*-d_max + self.mannings_n[1]
+        self.mannings_slope = (self.mannings_n[1] - self.mannings_n[0]) / (np.max(self.network['D_pred_mid']) - np.min(self.network['D_pred_mid']))
+        self.mannings_intercept = self.mannings_slope*-np.max(self.network['D_pred_mid']) + self.mannings_n[1]
 
         # obtain number of time steps for output table
         time = np.arange(1, self.hydrographs.shape[1]-3, 1, dtype=np.int)
@@ -103,7 +102,7 @@ class SerfeModel:
         :param DA: the drainage area of the location associated with the discharge
         :return: a coeffiecient for the drainage area - discharge relationship
         """
-        a = Q / DA**self.flow_exp
+        a = max(Q / DA**self.flow_exp, 0)
 
         return a
 
@@ -113,11 +112,15 @@ class SerfeModel:
             Q = []
             eff_da = []
 
-            for i in self.hydrographs.index:
-                if self.hydrographs.loc[i, 'segid'] in self.us_segs[segid]:
-                    if self.hydrographs.loc[i, 'gage_ds'] == 0:
-                        Q.append(self.hydrographs.loc[i, str(time)])
+            for i in self.hydrographs.index:  # for each gage
+                if self.hydrographs.loc[i, 'segid'] in self.us_segs[segid]:  # if gage is upstream of segment
+                    if self.hydrographs.loc[i, 'gage_ds'] == 0:  # if it has no other gages downstream
+                        Q.append(self.hydrographs.loc[i, str(time)])  # then add the stats
                         eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
+                    elif self.hydrographs.loc[i, 'gage_ds'] != 0:  # if it DOES have other gages downstream
+                        if len(list(set(self.ds_segs[segid]) & set(self.hydrographs['segid']))) == self.hydrographs.loc[i, 'gage_ds']:  # if the amount of gages ds from seg is same as ds from given gage
+                            Q.append(self.hydrographs.loc[i, str(time)])  # than add the stats
+                            eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
 
             ur = self.hydrographs[self.hydrographs['regulated'] == 0]
             coefs = []
@@ -126,11 +129,10 @@ class SerfeModel:
 
             if len(Q) == 0:
                 Q = [0]
-            if len(coefs) == 0:
-                coefs = [0]
+            if len(eff_da) == 0:
+                eff_da = [0]
 
-            eff_da = self.network.loc[segid, 'eff_DA'] - np.sum(eff_da)
-
+            eff_da = max(self.network.loc[segid, 'eff_DA'] - np.max(eff_da), 0.01)
             flow = np.sum(Q) + np.average(coefs)*eff_da**self.flow_exp
 
         else:
@@ -216,7 +218,7 @@ class SerfeModel:
 
         return cap_tot  # add in bl stuff later
 
-    def apply_to_reach(self, segid, time):  # , gage):
+    def apply_to_reach(self, segid, time):
         """
         applies the SeRFE logic to a given reach
         :param segid: segment ID
@@ -231,7 +233,7 @@ class SerfeModel:
         # get channel width of reach at given time step
         da = np.log(self.network.loc[segid, 'Drain_Area'])
         q = np.sqrt(flow)
-        w_inputs = np.array([da, q])  # set minimum?
+        w_inputs = np.array([da, q])
         w = max(self.width.predict([w_inputs])[0], 0.5)  # 0.5 m min width
         if self.network.loc[segid, 'confine'] == 1:
             if w > self.network.loc[segid, 'w_bf']:
@@ -598,17 +600,11 @@ class SerfeModel:
         :param time: time step
         :return:
         """
-        conf_list = []  # is there a way to get rid of this type of for loop
-        da_vals = []
-        for i in self.network.index:
-            if self.network.loc[i, 'confluence'] == 1:
-                conf_list.append(i)
-                da_vals.append(self.network.loc[i, 'Drain_Area'])
+        conf_list = self.network[self.network['confluence'] == 1].index
+        da_vals = [self.network.loc[i, 'Drain_Area'] for i in conf_list]
+
         sort = np.argsort(da_vals)
         conf_list = [conf_list[i] for i in sort]
-
-        # the sorting by da alone isn't working. Need to set qs_out equal to some nodata val and then make sure there's
-        # a value for both upstream segments before running the model on the segment
 
         while len(conf_list) > 0:
             for x in conf_list:

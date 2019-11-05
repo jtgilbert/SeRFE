@@ -1,5 +1,5 @@
 # imports
-import Visualizations
+from Scripts import Visualizations
 
 # directory
 dir = '/data'

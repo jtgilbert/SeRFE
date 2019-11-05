@@ -1,15 +1,16 @@
-from PyQt4 import QtGui
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import QMainWindow, QFileDialog, QApplication
 import sys
-import design_preprocessing
-from watershed_dem import watershed_dem
-from drainage_area import drain_area
-from network_topology import NetworkTopology
-from network_attributes import add_da, add_slope
+from Scripts import preprocessing_d
+from Scripts.watershed_dem import watershed_dem
+from Scripts.drainage_area import drain_area
+from Scripts.network_topology import NetworkTopology
+from Scripts.network_attributes import add_da, add_slope
 
 # from network_topology import network_topology
 
 
-class TopologyTool(QtGui.QMainWindow, design_preprocessing.Ui_MainWindow):
+class TopologyTool(QMainWindow, preprocessing_d.Ui_MainWindow):
     def __init__(self):
         super(self.__class__, self).__init__()
         self.setupUi(self)
@@ -41,13 +42,13 @@ class TopologyTool(QtGui.QMainWindow, design_preprocessing.Ui_MainWindow):
         self.btnOk_tab4.clicked.connect(self.attributes)
 
     def file_browser(self, txtControl):
-        filename = QtGui.QFileDialog.getOpenFileName(self, 'Open File', '',
+        filename = QFileDialog.getOpenFileName(self, 'Open File', '',
                                                      'Shapefiles (*.shp);; Rasters (*.img *.tif);; CSV (*.csv)')
-        txtControl.setText(filename)
+        txtControl.setText(filename[0])
 
     def file_save(self, txtControl):
-        filename = QtGui.QFileDialog.getSaveFileName(self, 'Output File', '', 'All Files (*)')
-        txtControl.setText(filename)
+        filename = QFileDialog.getSaveFileName(self, 'Output File', '', 'All Files (*)')
+        txtControl.setText(filename[0])
 
     def watsdem(self):
         dem = str(self.txtDEM_tab1.text())
@@ -80,7 +81,7 @@ class TopologyTool(QtGui.QMainWindow, design_preprocessing.Ui_MainWindow):
 
 
 def main():
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     form = TopologyTool()
     form.show()
     app.exec_()

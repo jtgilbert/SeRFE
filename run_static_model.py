@@ -1,8 +1,7 @@
 """"""
 
 # imports
-import class_Q
-import class_Qs
+from Scripts import class_Q, class_Qs
 import geopandas as gpd
 import numpy as np
 import matplotlib.pyplot as plt

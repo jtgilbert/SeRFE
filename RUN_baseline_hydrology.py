@@ -1,5 +1,5 @@
 # imports
-import class_Q
+from Scripts import class_Q
 
 # directory where data is stored,
 dir = 'SP/'
