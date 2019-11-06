@@ -55,13 +55,14 @@ class SedDeliveryParams:
         return
 
     def get_gamma_vals(self):
+
         ave_slope = []
 
         for i in self.dn.index:
             seg = self.dn.loc[i]
             geom = seg['geometry']
 
-            print i
+            print 'segment ', i, ' of ', len(self.dn)
 
             ept1 = (geom.boundary[0].xy[0][0], geom.boundary[0].xy[1][0])
             ept2 = (geom.boundary[1].xy[0][0], geom.boundary[1].xy[1][0])

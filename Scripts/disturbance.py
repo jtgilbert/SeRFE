@@ -1,7 +1,6 @@
 # imports
 import geopandas as gpd
 import network_topology as nt
-import numpy as np
 
 
 class Disturbances:
@@ -22,56 +21,48 @@ class Disturbances:
         if 'eff_DA' in self.network.columns:
             pass
         else:
-            for i in self.network.index:
-                self.network.loc[i, 'eff_DA'] = self.network.loc[i, 'Drain_Area']
+            self.network['eff_DA'] = self.network['Drain_Area']
 
         # add a denudation rate field, default to -9999
         if 'denude' in self.network.columns:
             pass
         else:
-            for i in self.network.index:
-                self.network.loc[i, 'denude'] = -9999
+            self.network['denude'] = -9999
 
         # add a disturbance start time field
         if 'dist_start' in self.network.columns:
             pass
         else:
-            for i in self.network.index:
-                self.network.loc[i, 'dist_start'] = -9999
+            self.network['dist_start'] = -9999
 
         # add a disturbance end time field
         if 'dist_end' in self.network.columns:
             pass
         else:
-            for i in self.network.index:
-                self.network.loc[i, 'dist_end'] = -9999
+            self.network['dist_end'] = -9999
 
         # add a disturbance gamma shape and scale
         if 'dist_g_sh' in self.network.columns:
             pass
         else:
-            for i in self.network.index:
-                self.network.loc[i, 'dist_g_sh'] = -9999
-                self.network.loc[i, 'dist_g_sc'] = -9999
+            self.network['dist_g_sh'] = -9999
+            self.network['dist_g_sc'] = -9999
 
         self.network.to_file(self.streams)
 
     def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None):
-        """
-        Run separately for things that change effective da (e.g. dams) and
-        things that increase sedimentation (e.g. fire)
-        :param segid:
-        :param new_da:
-        :param new_sed:
-        :return:
-        """
 
-        if new_da:
+        print 'adding disturbances'
+
+        if new_da:  # need to update this to account for inline dams
             for x in range(len(segid)):
                 da = self.network.loc[segid[x], 'Drain_Area']
                 ds_segs = self.topo.find_all_ds(segid[x])
                 for y in range(len(ds_segs)):
-                    self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
+                    if self.network.loc[ds_segs[y], 'eff_DA'] == self.network.loc[ds_segs[y], 'Drain_Area']:
+                        self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
+                    else:
+                        pass
 
         if new_denude is not None:
             for x in range(len(segid)):
@@ -95,14 +86,10 @@ class Disturbances:
         return
 
     def update_direct_da(self):
-        """
 
-        :return:
-        """
-
+        print 'updating direct drainage area'
         # add directly contributing DA to each network segment
         for i in self.network.index:
-            print 'segment ' + str(i)
             us_seg = self.topo.find_us_seg(i)
             us_seg2 = self.topo.find_us_seg2(i)
             if us_seg is not None:

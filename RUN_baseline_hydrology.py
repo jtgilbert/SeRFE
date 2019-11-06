@@ -2,10 +2,10 @@
 from Scripts import class_Q
 
 # directory where data is stored,
-dir = 'SP/'
+dir = 'data/'
 
 # Inputs - fill in with the name and extension of input drainage network
-network = dir + 'SP_network_500m.shp'  # shapefile
+network = dir + '.shp'  # shapefile
 Q2_table = dir + 'reference_Q2.csv'  # csv
 
 # Run Model - do not alter anything below this point

@@ -223,13 +223,13 @@ class Stats:
         return np.mean(series)
 
 
-inst = Visualizations('Piru/piru_out_103019.csv', 'Piru/Piru_network_1km.shp', 'Piru/Piru_hydrographs.csv')
+#inst = Visualizations('Piru/piru_out_103019.csv', 'Piru/Piru_network_1km.shp', 'Piru/Piru_hydrographs.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-inst.plot_csr_time_series(131)
-inst.plot_storage(131)
+#inst.plot_csr_time_series(131)
+#inst.plot_storage(131)
 #inst.plot_time_series(130, 'Q')
 #inst.date_fig(293, 'CSR_max', save=True)
 

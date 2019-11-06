@@ -41,10 +41,6 @@ class BaselineQs:
         self.qs_to_network()
 
     def qs_to_network(self):
-        """
-
-        :return:
-        """
 
         self.network['Qs (t/yr)'] = -9999
         self.network['sed_rate'] = -9999
@@ -64,9 +60,6 @@ class BaselineQs:
 
 
 class UpdatedQs:
-    """
-
-    """
 
     def __init__(self, network, updated_qs_table):
         """
@@ -98,7 +91,6 @@ class UpdatedQs:
         self.network['eff_DA'] = -9999
 
     def unaffected_reaches(self):
-        """Copy baseline rate, Qs and effective DA for any stream reaches that are not downstream of any disturbance."""
 
         ds_list = []
 
@@ -116,7 +108,6 @@ class UpdatedQs:
         return
 
     def ds_reductions(self):
-        """Update the newQs value downstream of disturbance until the next confluence"""
 
         for x in range(len(self.segids)):
             self.network.loc[self.segids[x], 'newQs'] = self.values[x]

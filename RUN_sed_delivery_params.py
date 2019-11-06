@@ -2,13 +2,13 @@
 from Scripts import sed_delivery_params
 
 # directory
-dir = 'Piru/'
+dir = 'data/'
 
 # Inputs - fill in
-dem = dir + 'DEM_10m_Piru.tif'  # name and extension of DEM
-slope_out = dir + 'slope.tif'  # if small DEM (e.g. HUC 12) set calc_slope = True and specify output name and extension,
+dem = dir + '.tif'  # name and extension of DEM
+slope_out = dir + '.tif'  # if small DEM (e.g. HUC 12) set calc_slope = True and specify output name and extension,
                           # otherwise, use GIS to derive slope raster and specify name and extension of that raster.
-network = dir + 'Piru_network_1km.shp'  # name and extension of drainage network shapefile
+network = dir + '.shp'  # name and extension of drainage network shapefile
 neighborhood = 500  # neighborhood distance for calculating local gradient (m)
 g_shape = 3  # gamma shape parameter (for erosion rates)
 g_scale_min = 0.2  # minimum gamma scale parameter (for erosion rates)

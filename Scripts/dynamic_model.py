@@ -14,11 +14,13 @@ class SerfeModel:
     def __init__(self, hydrograph, width_table, flow_exp, network, mannings_min=0.03, mannings_max=0.06, bulk_dens=1.):
         """
 
-        :param hydrograph: csv file filled in with hydrograph information
-        :param flow_exp: discharge-drainage area relationship exponent (can be found in plot produced from hydrology tool)
+        :param hydrograph: csv file containing flow information for each gage.
+        :param width_table: the width table (csv) - column 1 header: 'DA', column 2 header: 'Q', column 3 header: 'w'.
+        :param flow_exp: the flow exponent from the equation in the chart that the baseline hydrology tool produced.
         :param network: drainage network shapefile
-        :param mannings_n: a value for an average Manning's n for the basin
-        :param tl_factor: a total load factor to convert bedload transport capacity into total load transport capacity
+        :param mannings_min: minimum Manning's n value for the basin.
+        :param mannings_max: maximum Manning's n value for the basin.
+        :param bulk_dens: sediment (floodplain) deposit bulk density for the basin.
         """
 
         print 'initiating model'

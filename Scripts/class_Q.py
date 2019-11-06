@@ -12,36 +12,28 @@ import os
 class HistoricQ:
     """
     Uses a table of drainage area and corresponding Q2 values from 'least-disturbed' gauges in a basin to find
-    parameter values for a regression to predict historic Q2 in ungauged locations (currently set up as linear
-    regression i.e. Q2 is linear function of drainage area, based on Santa Clara River watershed). The drainage
-    network is then attributed with a historic value of Q2 for each segment.
+    parameter values for a regression to predict baseline Q2 in ungaged locations. The drainage
+    network is then attributed with a baseline value of Q2 for each segment.
     """
 
     def __init__(self, network, Q2_table):
         """
         :param network: stream network shapefile
-        :param Q2_table: csv with fields 'Q2 (cms)' and 'DA (km2)' and optionally 'MAP (cm)'
+        :param Q2_table: csv with fields 'Gage', 'Q2 (cms)' and 'DA (km2)'
         """
         self.streams = network
         self.network = gpd.read_file(network)
         self.Q2_table = Q2_table
         table = pd.read_csv(Q2_table, sep=',', header=0)
         table = table.dropna(axis=0)
-        self.gauges = table['Gauge']
+        self.gauges = table['Gage']
         self.Q2 = table['Q2 (cms)']
         self.DA = table['DA (km2)']
-        if table.shape[1] == 4:
-            self.precip = table['MAP (cm)']
 
         a, b = self.q2_equn_pow_1param()
         self.find_q2(a, b)
-        #self.q2_to_network(q2_vals)
 
     def q2_equn_pow_1param(self):
-        """
-        obtains the parameters for the linear equation Q2 = A*Drainage Area + B.
-        :return:
-        """
 
         # log transform data to linearize
         logQ2 = np.array(np.log10(self.Q2), dtype=np.float16).reshape(-1, 1)
@@ -76,25 +68,17 @@ class HistoricQ:
         return a, b
 
     def find_q2(self, a, b):
-        """
-        Attributes each segment of stream network with historic Q2 value.
-        Applies equation q2 = a*da**b
-        :param a: 'a' parameter
-        :param b: 'b' parameter
-        :return: q2 value
-        """
 
-        for i in self.network.index:
-            da = self.network.loc[i, 'Drain_Area']
-            q2 = float(a) * da ** float(b)
-            self.network.loc[i, 'Q2 (cms)'] = q2
+        da = self.network['Drain_Area']
+        q2 = float(a) * da ** float(b)
+        self.network['Q2 (cms)'] = q2
 
         self.network.to_file(self.streams)
 
         return
 
 
-class UpdatedQ:
+class UpdatedQ:  # this class isn't use at all now, get rid?
     """
     Takes an input table with stream segment IDs and their current (altered) Q2 values from disturbance (eg a dam)
     and re-attributes the whole drainage network with updated Q2 values.
@@ -118,12 +102,6 @@ class UpdatedQ:
         self.topo = nt.TopologyTools(network)
 
     def q2_additions(self, seg, dist_da):
-        """
-
-        :param seg:
-        :param dist_da:
-        :return:
-        """
 
         dr_area = self.network.loc[seg, 'Drain_Area'] - dist_da
         q2_add = self.a * dr_area**self.b
@@ -134,10 +112,6 @@ class UpdatedQ:
             return 0
 
     def update_affected_reaches(self):
-        """
-        Attributes segments with new Q2 values from alteration downstream to next confluence.
-        :return:
-        """
 
         for x in range(len(self.segid)):
             self.network.loc[self.segid[x], 'newQ2'] = self.newQ2[x]
@@ -156,10 +130,6 @@ class UpdatedQ:
         return
 
     def update_above_dist(self):
-        """
-        Attributes segments wtih new Q2 values that are the same as the old Q2 values upstream of any disturbance.
-        :return:
-        """
 
         dist_us = []
         dist_ds = []
@@ -186,10 +156,6 @@ class UpdatedQ:
         return
 
     def update_below_confluences(self):
-        """
-        Attributes segments downstream of confluences in network with new Q2 values.
-        :return:
-        """
 
         conf_list = []
 
@@ -234,8 +200,3 @@ class UpdatedQ:
 
         return
 
-wd = '/home/jordan/Documents/Geoscience/jupyter_testing/Piru_test/'
-network = wd + 'Piru_network_500m.shp'
-q2table = wd + 'referenceQ2.csv'
-
-HistoricQ(network, q2table)

@@ -5,9 +5,13 @@ from rasterstats import zonal_stats
 
 def est_fp_thickness(dn, valley, dem, min_thickness=0.2, max_thickness=1.5):
     """
-    Adds an attribute 'fp_thick' containing an estimated floodplain thickness for each streams segment
-    :param dn: string - path to drainage network shapefile. Should have 'width_low' and 'width_flood' attributes
-    :param dem: string - path to dem
+    Adds 3 attributes 'fpt_(min, mid, max)' to drainage network representing estimated floodplain thickness
+    associated with each network segment based on a dem.
+    :param dn: string - path to drainange network shapefile.
+    :param valley: string - path to floodplain/valley bottom shapefile.
+    :param dem: stinrg - path to DEM.
+    :param min_thickness: a minimum floodplain thickness for segments with floodplains.
+    :param max_thickness: a maximum floodplain thickness for segments with floodplains.
     :return:
     """
 
@@ -15,7 +19,7 @@ def est_fp_thickness(dn, valley, dem, min_thickness=0.2, max_thickness=1.5):
     vb = gpd.read_file(valley)
 
     for i in network.index:
-        print i
+        print 'segment ', i, ' of ', len(network)
         if network.loc[i, 'confine'] < 1:
             chan_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']/2, cap_style=2)
             lg_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']*1.5, cap_style=2)

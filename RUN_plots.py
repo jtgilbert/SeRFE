@@ -20,7 +20,7 @@ if discharge:
     vis.plot_time_series(segment_id, 'Q')
 
 if storage:
-    vis.plot_storage2(segment_id)
+    vis.plot_storage(segment_id)
 
 if csr:
     vis.plot_csr_time_series(segment_id)

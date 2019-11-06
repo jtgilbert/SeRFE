@@ -8,13 +8,13 @@ class Confinement:
     """
     Calculates confinement for each reach of an input drainage network and adds an attribute with this value
     """
-    def __init__(self, network, valley, exag=0.5): # exag: proportion of channel width to add to buffer to makes sure there's intersection with valley
+    def __init__(self, network, valley, exag=0.5):
         """
 
-        :param network: string - path to drainage network shapefile
-        :param valley: string - path to valley bottom shapefile
+        :param network: string - path to drainage network shapefile.
+        :param valley: string - path to valley bottom shapefile.
         :param exag: float - a proportion (0 - 1) of the stream network width at each segment to add to the buffer
-        width to ensure overlap with the valley bottom polygon. Default = 0.5
+        width to ensure overlap with the valley bottom polygon. Default = 0.5.
         """
         self.streams = network
         self.network = gpd.read_file(network)
@@ -25,9 +25,6 @@ class Confinement:
         self.network['confine'] = -9999
 
     def calc_confinement(self, seg, buf_width):
-        """
-        Calculates confinement. this function is called in the confinement method.
-        """
 
         channel = seg.buffer(buf_width)
         buf = seg.buffer(1000)
@@ -46,7 +43,6 @@ class Confinement:
                         int_coords_x = inters[i].exterior.xy[0][j]
                         int_coords_y = inters[i].exterior.xy[1][j]
                         int_coords.append([int_coords_x, int_coords_y])
-                        # print int_coords
             elif inters.type == 'Polygon':
                 int_coords = []
                 for i in range(len(inters.exterior.xy[0])):
@@ -78,7 +74,6 @@ class Confinement:
                     dif_coords_y = dif.exterior.xy[1][y]
                     if [dif_coords_x, dif_coords_y] in int_coords:
                         line_coords.append([dif_coords_x, dif_coords_y])
-                # print 'line_coords', len(line_coords)
                 if len(line_coords) > 1:
                     line = LineString(line_coords)
                     line_len.append(line.length)
@@ -95,17 +90,13 @@ class Confinement:
                 return min(1., np.sum(line_len) / (2*seg.length))
 
     def confinement(self):
-        """
-        Apply the confinement algorithm to each segment of the input drainage network
-        :return: adds value for attribute 'confine' to each segment of the drainage network
-        """
+
         for i in self.network.index:
-            print i
+            print 'segment ', i, ' of ', len(self.network.index)
             seg = self.network.loc[i, 'geometry']
             buf_width = (self.network.loc[i, 'w_bf']/2) + (self.network.loc[i, 'w_bf']*self.exag)
 
             conf_val = self.calc_confinement(seg, buf_width)
-            #print seg, conf_val
 
             self.network.loc[i, 'confine'] = conf_val
 
