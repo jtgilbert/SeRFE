@@ -112,30 +112,36 @@ class SerfeModel:
 
         if len(self.hydrographs) > 1:
             Q = []
-            eff_da = []
+            #eff_da = []
 
-            for i in self.hydrographs.index:  # for each gage
-                if self.hydrographs.loc[i, 'segid'] in self.us_segs[segid]:  # if gage is upstream of segment
-                    if self.hydrographs.loc[i, 'gage_ds'] == 0:  # if it has no other gages downstream
-                        Q.append(self.hydrographs.loc[i, str(time)])  # then add the stats
-                        eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
-                    elif self.hydrographs.loc[i, 'gage_ds'] != 0:  # if it DOES have other gages downstream
-                        if len(list(set(self.ds_segs[segid]) & set(self.hydrographs['segid']))) == self.hydrographs.loc[i, 'gage_ds']:  # if the amount of gages ds from seg is same as ds from given gage
-                            Q.append(self.hydrographs.loc[i, str(time)])  # than add the stats
-                            eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
+            r = self.hydrographs[self.hydrographs['regulated'] == 1]
+
+            for i in r.index:  # for each gage
+                if r.loc[i, 'segid'] == segid: # if the segment id is the gage segment add flow
+                    Q.append(r.loc[i, str(time)])
+                elif r.loc[i, 'segid'] in self.us_segs[segid]:  # if gage is upstream of segment
+                    #if self.hydrographs.loc[i, 'gage_ds'] == 0:  # if it has no other gages downstream
+                    #    Q.append(self.hydrographs.loc[i, str(time)])  # then add the stats
+                        #eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
+                    #elif self.hydrographs.loc[i, 'gage_ds'] != 0:  # if it DOES have other gages downstream
+                    if len(list(set(self.ds_segs[segid]) & set(r['segid']))) == r.loc[i, 'gage_ds']:  # if the amount of gages ds from seg is same as ds from given gage
+                        Q.append(r.loc[i, str(time)])  # than add the stats
+                            #eff_da.append(self.network.loc[self.hydrographs.loc[i, 'segid'], 'eff_DA'])
 
             ur = self.hydrographs[self.hydrographs['regulated'] == 0]
-            coefs = []
-            for x in ur.index:
-                coefs.append(self.find_flow_coef(ur.loc[x, str(time)], ur.loc[x, 'DA']))
+            coefs = [self.find_flow_coef(ur.loc[x, str(time)], ur.loc[x, 'DA']) for x in ur.index]
 
             if len(Q) == 0:
-                Q = [0]
-            if len(eff_da) == 0:
-                eff_da = [0]
+                Q.append(0)
+            #if len(eff_da) == 0:
+            #    eff_da.append(0)
 
-            eff_da = max(self.network.loc[segid, 'eff_DA'] - np.max(eff_da), 0.01)
-            flow = np.sum(Q) + np.average(coefs)*eff_da**self.flow_exp
+            if time == 293:
+                if segid == 17:
+                    print Q, coefs
+
+            #eff_da = max(self.network.loc[segid, 'eff_DA'] - np.sum(eff_da), 0.01)
+            flow = np.sum(Q) + np.average(coefs)*self.network.loc[segid, 'eff_DA']**self.flow_exp
 
         else:
             coef = self.find_flow_coef(self.hydrographs.loc[self.hydrographs.index[0], str(time)], self.hydrographs.loc[self.hydrographs.index[0], 'DA'])
@@ -225,7 +231,6 @@ class SerfeModel:
         applies the SeRFE logic to a given reach
         :param segid: segment ID
         :param time: time step
-        :param gage: gage ID
         :return:
         """
 
@@ -255,8 +260,12 @@ class SerfeModel:
         qs_dir = self.get_direct_qs(segid)  # tonnes
 
         if self.network.loc[segid, 'fp_area'] != 0.:
-            qs_channel = qs_dir*self.network.loc[segid, 'confine']
-            qs_fp = qs_dir - qs_channel  # tonnes
+            if self.network.loc[segid, 'direct_DA'] <= 5:  # logic to sure trib contributions not in network go to channel
+                qs_channel = qs_dir*self.network.loc[segid, 'confine']
+                qs_fp = qs_dir - qs_channel  # tonnes
+            else:
+                qs_channel = max(0.9*qs_dir, qs_dir*self.network.loc[segid, 'confine'])
+                qs_fp = qs_dir - qs_channel
             fp_store_min = ((self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_min'])*self.bulk_dens) + qs_fp
             fp_store_mid = ((self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_mid'])*self.bulk_dens) + qs_fp
             fp_store_max = ((self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_max'])*self.bulk_dens) + qs_fp
@@ -264,6 +273,7 @@ class SerfeModel:
             fp_thick_min = self.network.loc[segid, 'fpt_min'] + delta_fp_thick  # meters
             fp_thick_mid = self.network.loc[segid, 'fpt_mid'] + delta_fp_thick
             fp_thick_max = self.network.loc[segid, 'fpt_max'] + delta_fp_thick
+
         else:
             qs_channel = qs_dir
             fp_store_min, fp_store_mid, fp_store_max = 0., 0., 0.
@@ -276,9 +286,9 @@ class SerfeModel:
         D_mid = self.network.loc[segid, 'D_pred_mid'] / 1000.
         D_low = self.network.loc[segid, 'D_pred_low'] / 1000.
         D_high = self.network.loc[segid, 'D_pred_hig'] / 1000.
-        cap_min = self.transport_capacity(flow, w, S_min, D_high, 0.11)
-        cap_mid = self.transport_capacity(flow, w, S_mid, D_mid, 0.085)
-        cap_max = self.transport_capacity(flow, w, S_max, D_low, 0.06)
+        cap_min = self.transport_capacity(flow, min(w, self.network.loc[segid, 'w_bf']), S_min, D_high, 0.11)
+        cap_mid = self.transport_capacity(flow, min(w, self.network.loc[segid, 'w_bf']), S_mid, D_mid, 0.085)
+        cap_max = self.transport_capacity(flow, min(w, self.network.loc[segid, 'w_bf']), S_max, D_low, 0.06)
 
         # apply transport/routing logic
 
@@ -296,21 +306,21 @@ class SerfeModel:
         else:
             wc = sp_crit_min*1.2  # 1.2 is soil critical sp param
             k = -6.048e-7 + 5.52e-8*wc + 5.95e-7*self.network.loc[segid, 'Sinuos']
-            mig_rate_min = k*excess_sp_min**0.75
+            mig_rate_min = k*excess_sp_min **0.75
         excess_sp_mid = float(((9810*flow*S_mid)/w) - sp_crit_mid)
         if excess_sp_mid <= 0:
             mig_rate_mid = 0
         else:
             wc = sp_crit_mid * 1.2
             k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
-            mig_rate_mid = k*excess_sp_mid**0.75
+            mig_rate_mid = k*excess_sp_mid **0.75
         excess_sp_max = float(((9810*flow*S_max)/w) - sp_crit_max)
         if excess_sp_max <= 0:
             mig_rate_max = 0
         else:
             wc = sp_crit_max * 1.2
             k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
-            mig_rate_max = k*excess_sp_max**0.75
+            mig_rate_max = k*excess_sp_max **0.75
 
         if time == 1:
             prev_ch_store_min, prev_ch_store_mid, prev_ch_store_max = 0., 0., 0.
@@ -343,26 +353,46 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
 
             if (qs_channel + qs_us_min + prev_ch_store_min) == 0:
-                csr = 100.
+                if cap_min > 0:
+                    csr = cap_min
+                else:
+                    csr = 1
             else:
-                csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min)), 100.)
+                csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min)
 
         elif cap_min > (qs_channel + qs_us_min + prev_ch_store_min):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = min((mig_rate_min*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_min * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_min']*self.bulk_dens)  # set up as 1 DAY TIME STEP
-                qs_out = (qs_channel + qs_us_min + prev_ch_store_min) + fp_recr
-                fp_store_min = fp_store_min - fp_recr
-                channel_store = 0.
-                delta_h = ((channel_store - prev_ch_store_min) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
-                self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
-                # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
-                fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_min = max(0, fp_thick_min - fp_recr_thick)
+                fp_recr = min((mig_rate_min * 86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_min * self.bulk_dens, self.network.loc[segid, 'fp_area'] * self.network.loc[segid, 'fpt_min'] * self.bulk_dens)  # set up as 1 DAY TIME STEP
+                if depth_min < fp_thick_min:
+                    qs_out = (qs_channel + qs_us_min + prev_ch_store_min) + fp_recr
+                    fp_store_min = fp_store_min - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_min) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
+                    fp_thick_min = max(0, fp_thick_min - fp_recr_thick)
+                else:
+                    vol_channel = depth_min * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
+                    vol_fp = (depth_min - fp_thick_min) * self.network.loc[segid, 'fp_area']
+                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    fp_recr = fp_recr - (qs_us_min*(1-channel_ratio))
+                    qs_out = (qs_channel + qs_us_min + prev_ch_store_min) + fp_recr
+                    fp_store_min = fp_store_min - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_min) * (1 / self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h / self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1 / self.bulk_dens)
+                    fp_thick_min = max(0, fp_thick_min - fp_recr_thick)
 
                 if (qs_channel + qs_us_min + prev_ch_store_min + fp_recr) == 0:
-                    csr = 100.
+                    if cap_min > 0:
+                        csr = cap_min
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min + fp_recr)), 100.)
+                    csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min + fp_recr)
 
             else:  # segment is confined
                 channel_store = 0.
@@ -371,9 +401,12 @@ class SerfeModel:
                 qs_out = (qs_channel + qs_us_min + prev_ch_store_min)
 
                 if (qs_channel + qs_us_min + prev_ch_store_min) == 0:
-                    csr = 100.
+                    if cap_min > 0:
+                        csr = cap_min
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_min / (qs_channel + qs_us_min + prev_ch_store_min)), 100.)
+                    csr = cap_min / (qs_channel + qs_us_min + prev_ch_store_min)
 
         else:  # sediment load equals transport capacity
             qs_out = qs_channel + qs_us_min + prev_ch_store_min
@@ -427,26 +460,53 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
 
             if (qs_channel + qs_us_mid + prev_ch_store_mid) == 0:
-                csr = 100.
+                if cap_mid > 0:
+                    csr = cap_mid
+                else:
+                    csr = 1
             else:
-                csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)), 100.)
+                csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)
 
         elif cap_mid > (qs_channel + qs_us_mid + prev_ch_store_mid):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = min((mig_rate_mid*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_mid * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_mid']*self.bulk_dens)
-                qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid) + fp_recr
-                fp_store_mid = fp_store_mid - fp_recr
-                channel_store = 0.
-                delta_h = ((channel_store - prev_ch_store_mid) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
-                self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
-                # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
-                fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_mid = max(0, fp_thick_mid - fp_recr_thick)
+                fp_recr = min((mig_rate_mid * 86400) * (self.network.loc[segid, 'Length_m'] * (
+                            1 - self.network.loc[segid, 'confine'])) * fp_thick_mid * self.bulk_dens,
+                              self.network.loc[segid, 'fp_area'] * self.network.loc[
+                                  segid, 'fpt_mid'] * self.bulk_dens)  # set up as 1 DAY TIME STEP
+                if depth_mid < fp_thick_mid:
+                    qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid) + fp_recr
+                    fp_store_mid = fp_store_mid - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_mid) * (1 / self.bulk_dens)) / (
+                                0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (
+                                delta_h / self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1 / self.bulk_dens)
+                    fp_thick_mid = max(0, fp_thick_mid - fp_recr_thick)
+                else:
+                    vol_channel = depth_mid * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
+                    vol_fp = (depth_mid - fp_thick_mid) * self.network.loc[segid, 'fp_area']
+                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    fp_recr = fp_recr - (qs_us_mid * (1 - channel_ratio))
+                    qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid) + fp_recr
+                    fp_store_mid = fp_store_mid - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_mid) * (1 / self.bulk_dens)) / (
+                                0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (
+                                delta_h / self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1 / self.bulk_dens)
+                    fp_thick_mid = max(0, fp_thick_mid - fp_recr_thick)
 
                 if (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr) == 0:
-                    csr = 100.
+                    if cap_mid > 0:
+                        csr = cap_mid
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr)), 100.)
+                    csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid + fp_recr)
 
             else:  # segment is confined
                 channel_store = 0.
@@ -455,9 +515,12 @@ class SerfeModel:
                 qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid)
 
                 if (qs_channel + qs_us_mid + prev_ch_store_mid) == 0:
-                    csr = 100.
+                    if cap_mid > 0:
+                        csr = cap_mid
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)), 100.)
+                    csr = cap_mid / (qs_channel + qs_us_mid + prev_ch_store_mid)
 
         else:  # sediment load equals transport capacity
             qs_out = qs_channel + qs_us_mid + prev_ch_store_mid
@@ -510,26 +573,53 @@ class SerfeModel:
                 self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
 
             if (qs_channel + qs_us_max + prev_ch_store_max) == 0:
-                csr = 100.
+                if cap_max > 0:
+                    csr = cap_max
+                else:
+                    csr = 1
             else:
-                csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max)), 100.)
+                csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max)
 
         elif cap_max > (qs_channel + qs_us_max + prev_ch_store_max):  # greater transport capacity than sediment load
             if self.network.loc[segid, 'confine'] != 1.:  # segment is unconfined
-                fp_recr = min((mig_rate_max*86400) * (self.network.loc[segid, 'Length_m'] * (1 - self.network.loc[segid, 'confine'])) * fp_thick_max * self.bulk_dens, self.network.loc[segid, 'fp_area']*self.network.loc[segid, 'fpt_max']*self.bulk_dens)
-                qs_out = (qs_channel + qs_us_max + prev_ch_store_max) + fp_recr
-                fp_store_max = fp_store_max - fp_recr
-                channel_store = 0.
-                delta_h = ((channel_store - prev_ch_store_max) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
-                self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
-                # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
-                fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1/self.bulk_dens)
-                fp_thick_max = max(0, fp_thick_max - fp_recr_thick)
+                fp_recr = min((mig_rate_max * 86400) * (self.network.loc[segid, 'Length_m'] * (
+                            1 - self.network.loc[segid, 'confine'])) * fp_thick_max * self.bulk_dens,
+                              self.network.loc[segid, 'fp_area'] * self.network.loc[
+                                  segid, 'fpt_max'] * self.bulk_dens)  # set up as 1 DAY TIME STEP
+                if depth_max < fp_thick_max:
+                    qs_out = (qs_channel + qs_us_max + prev_ch_store_max) + fp_recr
+                    fp_store_max = fp_store_max - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_max) * (1 / self.bulk_dens)) / (
+                                0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (
+                                delta_h / self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1 / self.bulk_dens)
+                    fp_thick_max = max(0, fp_thick_max - fp_recr_thick)
+                else:
+                    vol_channel = depth_max * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
+                    vol_fp = (depth_max - fp_thick_max) * self.network.loc[segid, 'fp_area']
+                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    fp_recr = fp_recr - (qs_us_max * (1 - channel_ratio))
+                    qs_out = (qs_channel + qs_us_max + prev_ch_store_max) + fp_recr
+                    fp_store_max = fp_store_max - fp_recr
+                    channel_store = 0.
+                    delta_h = ((channel_store - prev_ch_store_max) * (1 / self.bulk_dens)) / (
+                                0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
+                    self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (
+                                delta_h / self.network.loc[segid, 'Length_m'])
+                    # update fp area...?  if i hold width constant that the change is storage should be represented by lower fp surface (see how line 166 elevates it.
+                    fp_recr_thick = fp_recr / self.network.loc[segid, 'fp_area'] * (1 / self.bulk_dens)
+                    fp_thick_max = max(0, fp_thick_max - fp_recr_thick)
 
                 if (qs_channel + qs_us_max + prev_ch_store_max + fp_recr) == 0:
-                    csr = 100.
+                    if cap_max > 0:
+                        csr = cap_max
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max + fp_recr)), 100.)
+                    csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max + fp_recr)
 
             else:  # segment is confined
                 channel_store = 0.
@@ -538,12 +628,15 @@ class SerfeModel:
                 qs_out = (qs_channel + qs_us_max + prev_ch_store_max)
 
                 if (qs_channel + qs_us_max + prev_ch_store_max) == 0:
-                    csr = 100.
+                    if cap_max > 0:
+                        csr = cap_max
+                    else:
+                        csr = 1
                 else:
-                    csr = min((cap_max / (qs_channel + qs_us_max + prev_ch_store_max)), 100.)
+                    csr = cap_max / (qs_channel + qs_us_max + prev_ch_store_max)
 
         else:  # sediment load equals transport capacity
-            qs_out = qs_channel + qs_us_mid + prev_ch_store_mid
+            qs_out = qs_channel + qs_us_max + prev_ch_store_max
             channel_store = 0.
             csr = 1.
 

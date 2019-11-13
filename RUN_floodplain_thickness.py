@@ -2,13 +2,13 @@
 from Scripts import floodplain_thickness
 
 # directory
-dir = 'data/'
+dir = 'SC/'
 
 # Inputs - fill in
-network = dir + '.shp'  # name and extension of drainage network shapefile
-valley = dir + '.shp'  # name and extension of valley bottom shapefile
-dem = dir + '.tif'  # name and extension of DEM
-min_thickness = 0.5  # a minimum floodplain thickness value (m)
+network = dir + 'SC_serfe_network.shp'  # name and extension of drainage network shapefile
+valley = dir + 'SC_VB.shp'  # name and extension of valley bottom shapefile
+dem = dir + 'DEM_10m_SantaClara.tif'  # name and extension of DEM
+min_thickness = 1.5  # a minimum floodplain thickness value (m)
 max_thickness = 3  # a maximum floodplain thickness value (m)
 
 # run model - do not modify below here

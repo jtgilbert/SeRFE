@@ -57,12 +57,13 @@ class Disturbances:
         if new_da:  # need to update this to account for inline dams
             for x in range(len(segid)):
                 da = self.network.loc[segid[x], 'Drain_Area']
+                self.network.loc[segid[x], 'eff_DA'] = 0
                 ds_segs = self.topo.find_all_ds(segid[x])
                 for y in range(len(ds_segs)):
-                    if self.network.loc[ds_segs[y], 'eff_DA'] == self.network.loc[ds_segs[y], 'Drain_Area']:
-                        self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
-                    else:
-                        pass
+                    # if self.network.loc[ds_segs[y], 'eff_DA'] == self.network.loc[ds_segs[y], 'Drain_Area']: doesn't solve for ds of two dams on dif streams
+                    self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
+                    #else:
+                    #    pass
 
         if new_denude is not None:
             for x in range(len(segid)):
@@ -104,8 +105,11 @@ class Disturbances:
             else:
                 dda = self.network.loc[i, 'eff_DA']
 
-            self.network.loc[i, 'direct_DA'] = dda
+            if dda >= 0:
+                self.network.loc[i, 'direct_DA'] = dda
+            else:
+                self.network.loc[i, 'direct_DA'] = self.network.loc[i, 'eff_DA']
 
-            self.network.to_file(self.streams)
+        self.network.to_file(self.streams)
 
         return

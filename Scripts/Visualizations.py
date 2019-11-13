@@ -38,6 +38,7 @@ class Visualizations:
         ax.set_xlabel('Time Step', fontsize=20)
         ax.set_ylabel('CSR', fontsize=20)
         ax.set_title("Segment {0}".format(seg), fontsize=20, fontweight='bold')
+        plt.yscale('log')
         plt.show()
 
         return
@@ -223,15 +224,15 @@ class Stats:
         return np.mean(series)
 
 
-#inst = Visualizations('Piru/piru_out_103019.csv', 'Piru/Piru_network_1km.shp', 'Piru/Piru_hydrographs.csv')
+#inst = Visualizations('/home/jordan/Documents/Geoscience/SeRFE/SC/outputs/sc_out_111219.csv', '/home/jordan/Documents/Geoscience/SeRFE/SC/SC_serfe_network_split.shp', '/home/jordan/Documents/Geoscience/SeRFE/SC/SC_hydrographs_new.csv')
 #inst.sum_plot('Qs')
 #inst.sum_plot('Qs_out')
 #inst.delta_storage_plot()
 #inst.csr_integrate()
-#inst.plot_csr_time_series(131)
-#inst.plot_storage(131)
-#inst.plot_time_series(130, 'Q')
-#inst.date_fig(293, 'CSR_max', save=True)
+#inst.plot_csr_time_series(108)
+#inst.plot_storage(108)
+#inst.plot_time_series(108, 'Q')
+#inst.date_fig(293, 'Q', save=True)
 
 #inst2 = Stats('/home/jordan/Documents/piru_output.csv')
 #print inst2.seg_mean(17, 'CSR')
