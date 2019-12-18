@@ -1,10 +1,7 @@
 """ This function creates a drainage area raster from an input dem. """
 
 # imports
-import pygeoprocessing.routing as rt
-import rasterio
-import os
-import numpy as np
+import richdem as rd
 
 
 def drain_area(dem, drain_area_out):
@@ -16,34 +13,10 @@ def drain_area(dem, drain_area_out):
     :drain_area_out: string - path to output drainage area raster file
     """
 
-    # sets up intermediate file uris
-    os.chdir(os.path.dirname(dem))
-    filled = 'filled.tif'
-    fd = 'fd.tif'
-    fa = 'fa.tif'
-
-    # geoprocessing functions
-    rt.fill_pits((dem, 1), filled)
-    rt.flow_dir_d8((filled, 1), fd)
-    rt.flow_accumulation_d8((fd, 1), fa)
-
-    # convert flow accumulation to drainage area
-    flow_acc = rasterio.open(fa, 'r')
-    resolution = flow_acc.res[0]
-    flow_acc_array = flow_acc.read(1)
-    flow_acc_array = np.asarray(flow_acc_array, dtype='float64')
-    dr_area_array = (flow_acc_array * resolution**2)/1000000.0
-
-    # write output file
-    profile = flow_acc.profile
-    profile.update({'dtype': 'float64'})
-
-    with rasterio.open(drain_area_out, 'w', **profile) as dst:
-        dst.write(dr_area_array, 1)
-
-    # delete intermediate files
-    # os.remove(filled)
-    # os.remove(fd)
-    # os.remove(fa)
+    dem_in = rd.LoadGDAL(dem)
+    rd.FillDepressions(dem_in, epsilon=True, in_place=True)
+    accum_d8 = rd.FlowAccumulation(dem_in, method='D8')
+    da = accum_d8 * (accum_d8.geotransform[1] ** 2 / 1000000)
+    rd.SaveGDAL(drain_area_out, da)
 
     return

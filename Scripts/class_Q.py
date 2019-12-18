@@ -4,7 +4,7 @@ import numpy as np
 from sklearn import linear_model
 import pandas as pd
 import geopandas as gpd
-import network_topology as nt
+from .network_topology import TopologyTools
 import matplotlib.pyplot as plt
 import os
 
@@ -99,7 +99,7 @@ class UpdatedQ:  # this class isn't use at all now, get rid?
         self.segid = table['Segment ID']
         self.newQ2 = table['Updated Q2 (cms)']
 
-        self.topo = nt.TopologyTools(network)
+        self.topo = TopologyTools(network)
 
     def q2_additions(self, seg, dist_da):
 

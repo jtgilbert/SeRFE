@@ -28,7 +28,7 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
         da = seg['Drain_Area']
         geom = seg['geometry']
 
-        print 'segment ', i, ' of ', len(dn.index)
+        print('segment ', i, ' of ', len(dn.index))
 
         ept1 = (geom.boundary[0].xy[0][0], geom.boundary[0].xy[1][0])
         ept2 = (geom.boundary[1].xy[0][0], geom.boundary[1].xy[1][0])

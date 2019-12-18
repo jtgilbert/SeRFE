@@ -2,16 +2,16 @@
 from Scripts import disturbance
 
 # directory
-dir = 'SC/'
+dir = 'data/'
 
 # stream network - fill in name and extension of drainage network shapefile
-network = dir + 'SC_serfe_network.shp'
+network = dir + '.shp'
 
 # ADD DISTURBANCES
 
 # 1. SEDIMENT DECREASING DISTURBANCE (e.g. dam)
 # Inputs - fill in
-segid1 = [155, 115, 169]  # List of segment IDs for each segment at location of sediment reduction (obtain from GIS)
+segid1 = []  # List of segment IDs for each segment at location of sediment reduction (obtain from GIS)
 new_da = True  # leave true to update effective drainage area below dams
 
 # 2. SEDIMENT INCREASING DISTURBANCE (e.g. wildfire)

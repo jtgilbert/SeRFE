@@ -19,7 +19,7 @@ def est_fp_thickness(dn, valley, dem, min_thickness=0.2, max_thickness=1.5):
     vb = gpd.read_file(valley)
 
     for i in network.index:
-        print 'segment ', i, ' of ', len(network)
+        print('segment ', i, ' of ', len(network))
         if network.loc[i, 'confine'] < 1:
             chan_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']/2, cap_style=2)
             lg_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']*1.5, cap_style=2)

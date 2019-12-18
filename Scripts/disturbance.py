@@ -1,6 +1,6 @@
 # imports
 import geopandas as gpd
-import network_topology as nt
+from .network_topology import TopologyTools
 
 
 class Disturbances:
@@ -15,7 +15,7 @@ class Disturbances:
         self.streams = network
         self.network = gpd.read_file(network)
 
-        self.topo = nt.TopologyTools(network)
+        self.topo = TopologyTools(network)
 
         # add an 'effective drainage area' field, default to actual DA
         if 'eff_DA' in self.network.columns:
@@ -52,7 +52,7 @@ class Disturbances:
 
     def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None):
 
-        print 'adding disturbances'
+        print('adding disturbances')
 
         if new_da:  # need to update this to account for inline dams
             for x in range(len(segid)):
@@ -88,7 +88,7 @@ class Disturbances:
 
     def update_direct_da(self):
 
-        print 'updating direct drainage area'
+        print('updating direct drainage area')
         # add directly contributing DA to each network segment
         for i in self.network.index:
             us_seg = self.topo.find_us_seg(i)

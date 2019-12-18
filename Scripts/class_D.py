@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.utils import resample
 import matplotlib.pyplot as plt
 import os
-import network_topology as nt
+from .network_topology import TopologyTools
 from sklearn import linear_model
 
 
@@ -29,7 +29,7 @@ class Dpred:
         self.grain_size = grain_size
         self.reach_ids = reach_ids
         self.width_table = width_table
-        self.topo = nt.TopologyTools(self.streams)
+        self.topo = TopologyTools(self.streams)
 
         if len(self.grain_size) != len(self.reach_ids):
             raise Exception('There are a different number of grain size tables and associated reach IDs')
@@ -88,7 +88,7 @@ class Dpred:
         regr.fit(table[['DA', 'Q']], table['w'])
         rsq = regr.score(table[['DA', 'Q']], table['w'])
         if rsq < 0.5:
-            print 'R-squared is less than 0.5, poor model fit'
+            print('R-squared is less than 0.5, poor model fit')
 
         return regr
 

@@ -2,7 +2,7 @@
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-import network_topology as nt
+from .network_topology import TopologyTools
 from sklearn import linear_model
 
 
@@ -23,15 +23,16 @@ class SerfeModel:
         :param bulk_dens: sediment (floodplain) deposit bulk density for the basin.
         """
 
-        print 'initiating model'
+        print('initiating model')
         self.hydrographs = pd.read_csv(hydrograph, index_col='Gage')
         self.flow_exp = flow_exp  # need the b in the equation for flow~DA so that you can recalculate a at each time step
         self.network = gpd.read_file(network)
         self.mannings_n = [mannings_min, mannings_max]
         self.bulk_dens = bulk_dens
         self.streams = network
+        self.fp_n = mannings_max+0.01
 
-        self.nt = nt.TopologyTools(network)
+        self.nt = TopologyTools(network)
 
         # append column to hydrographs indicating what other gages are downstream of it
         gage_ds = []
@@ -46,7 +47,7 @@ class SerfeModel:
                     gage_ds.append(0)
         self.hydrographs['gage_ds'] = gage_ds
 
-        print 'storing topology info'
+        print('storing topology info')
         # list of lists of upstream segments of each segment
         self.us_segs = [self.nt.find_all_us(i) for i in self.network.index]
         self.ds_segs = [self.nt.find_all_ds(i) for i in self.network.index]
@@ -93,7 +94,7 @@ class SerfeModel:
         regr.fit(table[['DA', 'Q']], table['w'])
         rsq = regr.score(table[['DA', 'Q']], table['w'])
         if rsq < 0.5:
-            print 'R-squared is less than 0.5, poor model fit'
+            print('R-squared is less than 0.5, poor model fit')
 
         return regr
 
@@ -135,10 +136,6 @@ class SerfeModel:
                 Q.append(0)
             #if len(eff_da) == 0:
             #    eff_da.append(0)
-
-            if time == 293:
-                if segid == 17:
-                    print Q, coefs
 
             #eff_da = max(self.network.loc[segid, 'eff_DA'] - np.sum(eff_da), 0.01)
             flow = np.sum(Q) + np.average(coefs)*self.network.loc[segid, 'eff_DA']**self.flow_exp
@@ -260,7 +257,7 @@ class SerfeModel:
         qs_dir = self.get_direct_qs(segid)  # tonnes
 
         if self.network.loc[segid, 'fp_area'] != 0.:
-            if self.network.loc[segid, 'direct_DA'] <= 5:  # logic to sure trib contributions not in network go to channel
+            if self.network.loc[segid, 'direct_DA'] <= 2:  # logic to sure trib contributions not in network go to channel
                 qs_channel = qs_dir*self.network.loc[segid, 'confine']
                 qs_fp = qs_dir - qs_channel  # tonnes
             else:
@@ -306,21 +303,21 @@ class SerfeModel:
         else:
             wc = sp_crit_min*1.2  # 1.2 is soil critical sp param
             k = -6.048e-7 + 5.52e-8*wc + 5.95e-7*self.network.loc[segid, 'Sinuos']
-            mig_rate_min = k*excess_sp_min **0.75
+            mig_rate_min = k*excess_sp_min **0.6
         excess_sp_mid = float(((9810*flow*S_mid)/w) - sp_crit_mid)
         if excess_sp_mid <= 0:
             mig_rate_mid = 0
         else:
             wc = sp_crit_mid * 1.2
             k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
-            mig_rate_mid = k*excess_sp_mid **0.75
+            mig_rate_mid = k*excess_sp_mid **0.6
         excess_sp_max = float(((9810*flow*S_max)/w) - sp_crit_max)
         if excess_sp_max <= 0:
             mig_rate_max = 0
         else:
             wc = sp_crit_max * 1.2
             k = -6.048e-7 + 5.52e-8 * wc + 5.95e-7 * self.network.loc[segid, 'Sinuos']
-            mig_rate_max = k*excess_sp_max **0.75
+            mig_rate_max = k*excess_sp_max **0.6
 
         if time == 1:
             prev_ch_store_min, prev_ch_store_mid, prev_ch_store_max = 0., 0., 0.
@@ -340,9 +337,12 @@ class SerfeModel:
                 else:  # depth is greater than floodplain height
                     vol_channel = depth_min * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_min - fp_thick_min)*self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    v_chan = (depth_min ** (2 / 3) * S_min ** 0.5) / n
+                    v_fp = ((depth_min - fp_thick_min) ** (2 / 3) * S_min ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp*v_ratio / ((vol_channel + vol_fp)-(vol_fp*v_ratio)) # correct volumes for velocity
                     sed_remain = (qs_channel + qs_us_min + prev_ch_store_min) - qs_out
-                    channel_store = sed_remain * channel_ratio
+                    channel_store = sed_remain * (1-fp_ratio)
                     delta_h = ((channel_store - prev_ch_store_min) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                     self.network.loc[segid, 'Slope_min'] = self.network.loc[segid, 'Slope_min'] + (delta_h/self.network.loc[segid, 'Length_m'])
                     fp_store_min = fp_store_min + (sed_remain - channel_store)
@@ -375,8 +375,13 @@ class SerfeModel:
                 else:
                     vol_channel = depth_min * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_min - fp_thick_min) * self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
-                    fp_recr = fp_recr - (qs_us_min*(1-channel_ratio))
+                    v_chan = (depth_min ** (2 / 3) * S_min ** 0.5) / n
+                    v_fp = ((depth_min - fp_thick_min) ** (2 / 3) * S_min ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp * v_ratio / ((vol_channel + vol_fp) - (vol_fp * v_ratio))  # correct volumes for velocity
+                    w_s = (16.17*0.0008**2)/(1.8e-5+(12.1275*0.0008**3)**0.5)  # suspended grain size 0.8mm for this trajectory
+                    fp_v_ratio = min(w_s/v_fp, 0.01)  # 1 percent minimum
+                    fp_recr = fp_recr - (qs_us_min*fp_ratio*fp_v_ratio)
                     qs_out = (qs_channel + qs_us_min + prev_ch_store_min) + fp_recr
                     fp_store_min = fp_store_min - fp_recr
                     channel_store = 0.
@@ -434,7 +439,7 @@ class SerfeModel:
         if time > 1:
             self.outdf.loc[(time, segid), 'Store_delta_min'] = store_tot - (self.outdf.loc[(time-1, segid), 'Store_tot_min'])
         else:
-            self.outdf.loc[(time, segid), 'Store_delta_min'] = 0
+            self.outdf.loc[(time, segid), 'Store_delta_min'] = 0  # this is wrong channel storage can change day 1
 
         # MID CAPACITY CASE
         if cap_mid < (qs_channel + qs_us_mid + prev_ch_store_mid):  # greater sediment load than transport capacity
@@ -447,9 +452,12 @@ class SerfeModel:
                 else:  # depth is greater than floodplain height
                     vol_channel = depth_mid * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_mid - fp_thick_mid) * self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    v_chan = (depth_mid ** (2 / 3) * S_mid ** 0.5) / n
+                    v_fp = ((depth_mid - fp_thick_mid) ** (2 / 3) * S_mid ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp * v_ratio / ((vol_channel + vol_fp) - (vol_fp * v_ratio))  # correct volumes for velocity
                     sed_remain = (qs_channel + qs_us_mid + prev_ch_store_mid) - qs_out
-                    channel_store = sed_remain * channel_ratio
+                    channel_store = sed_remain * (1 - fp_ratio)
                     delta_h = ((channel_store - prev_ch_store_mid) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                     self.network.loc[segid, 'Slope_mid'] = self.network.loc[segid, 'Slope_mid'] + (delta_h / self.network.loc[segid, 'Length_m'])
                     fp_store_mid = fp_store_mid + (sed_remain - channel_store)
@@ -487,8 +495,13 @@ class SerfeModel:
                 else:
                     vol_channel = depth_mid * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_mid - fp_thick_mid) * self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
-                    fp_recr = fp_recr - (qs_us_mid * (1 - channel_ratio))
+                    v_chan = (depth_mid ** (2 / 3) * S_mid ** 0.5) / n
+                    v_fp = ((depth_mid - fp_thick_mid) ** (2 / 3) * S_mid ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp * v_ratio / ((vol_channel + vol_fp) - (vol_fp * v_ratio))  # correct volumes for velocity
+                    w_s = (16.17 * 0.0005 ** 2) / (1.8e-5 + (12.1275 * 0.0005 ** 3) ** 0.5)  # suspended grain size 0.5mm for this trajectory
+                    fp_v_ratio = min(w_s / v_fp, 0.01)  # 1 percent minimum
+                    fp_recr = fp_recr - (qs_us_min * fp_ratio * fp_v_ratio)
                     qs_out = (qs_channel + qs_us_mid + prev_ch_store_mid) + fp_recr
                     fp_store_mid = fp_store_mid - fp_recr
                     channel_store = 0.
@@ -560,9 +573,12 @@ class SerfeModel:
                 else:  # depth is greater than floodplain height
                     vol_channel = depth_max * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_max - fp_thick_max) * self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
+                    v_chan = (depth_max ** (2 / 3) * S_max ** 0.5) / n
+                    v_fp = ((depth_max - fp_thick_max) ** (2 / 3) * S_max ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp * v_ratio / ((vol_channel + vol_fp) - (vol_fp * v_ratio))  # correct volumes for velocity
                     sed_remain = (qs_channel + qs_us_max + prev_ch_store_max) - qs_out
-                    channel_store = sed_remain * channel_ratio
+                    channel_store = sed_remain * (1 - fp_ratio)
                     delta_h = ((channel_store - prev_ch_store_max) * (1/self.bulk_dens)) / (0.5 * self.network.loc[segid, 'w_bf'] * self.network.loc[segid, 'Length_m'])
                     self.network.loc[segid, 'Slope_max'] = self.network.loc[segid, 'Slope_max'] + (delta_h / self.network.loc[segid, 'Length_m'])
                     fp_store_max = fp_store_max + (sed_remain - channel_store)
@@ -600,8 +616,13 @@ class SerfeModel:
                 else:
                     vol_channel = depth_max * self.network.loc[segid, 'Length_m'] * min(w, self.network.loc[segid, 'w_bf'])
                     vol_fp = (depth_max - fp_thick_max) * self.network.loc[segid, 'fp_area']
-                    channel_ratio = vol_channel / (vol_channel + vol_fp)
-                    fp_recr = fp_recr - (qs_us_max * (1 - channel_ratio))
+                    v_chan = (depth_max ** (2 / 3) * S_max ** 0.5) / n
+                    v_fp = ((depth_max - fp_thick_max) ** (2 / 3) * S_max ** 0.5) / self.fp_n
+                    v_ratio = v_fp / v_chan
+                    fp_ratio = vol_fp * v_ratio / ((vol_channel + vol_fp) - (vol_fp * v_ratio))  # correct volumes for velocity
+                    w_s = (16.17 * 0.0003 ** 2) / (1.8e-5 + (12.1275 * 0.0003 ** 3) ** 0.5)  # suspended grain size 0.3mm for this trajectory
+                    fp_v_ratio = min(w_s / v_fp, 0.01)  # 1 percent minimum
+                    fp_recr = fp_recr - (qs_us_min * fp_ratio * fp_v_ratio)
                     qs_out = (qs_channel + qs_us_max + prev_ch_store_max) + fp_recr
                     fp_store_max = fp_store_max - fp_recr
                     channel_store = 0.
@@ -741,7 +762,7 @@ class SerfeModel:
         time = 1
 
         while time <= total_t:
-            print 'day ' + str(time)
+            print('day ' + str(time))
 
             # set qs_out initially to -9999
             for i in range(len(self.outdf.index.levels[1])):
@@ -760,10 +781,10 @@ class SerfeModel:
                     self.network.loc[i, 'denude'] = np.random.gamma(self.network.loc[i, 'g_shape'], self.network.loc[i, 'g_scale'])
 
             # run the model for given time step
-            print 'running first order'
+            print('running first order')
             self.run_first_order(time)
 
-            print 'running below confluences'
+            print('running below confluences')
             self.run_below_confluences(time)
 
             time += 1

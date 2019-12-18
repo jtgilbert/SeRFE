@@ -8,7 +8,6 @@ tool looks for a new chain to start until there are no remaining chains to attri
 
 # imports
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 from rasterstats import zonal_stats

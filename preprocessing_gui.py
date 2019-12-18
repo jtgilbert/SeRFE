@@ -43,7 +43,7 @@ class TopologyTool(QMainWindow, preprocessing_d.Ui_MainWindow):
 
     def file_browser(self, txtControl):
         filename = QFileDialog.getOpenFileName(self, 'Open File', '',
-                                                     'Shapefiles (*.shp);; Rasters (*.img *.tif);; CSV (*.csv)')
+                                                     'Shapefiles (*.shp);; Rasters (*.img *.tif);; CSV (*.csv)', None, QFileDialog.DontUseNativeDialog)
         txtControl.setText(filename[0])
 
     def file_save(self, txtControl):

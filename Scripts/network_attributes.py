@@ -2,7 +2,6 @@
 import geopandas as gpd
 from rasterstats import zonal_stats
 from shapely.geometry import Point
-import network_topology as nt
 
 
 def add_da(network, da, crs_epsg):
