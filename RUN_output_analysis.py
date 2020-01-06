@@ -14,6 +14,10 @@ CSR = False  # enter True if calculating CSR
 CSR_start = None  # enter a time step to start CSR integration
 CSR_end = None  # enter a time step to end CSR integration
 
+# Fill in if you want to produce plots of storage through time for a given segment
+storage_plot = False
+storage_segment = None
+
 # Fill in if you want storage change attributes/figures
 store = False  # enter True if calculating storage change
 store_start = None
@@ -26,13 +30,16 @@ attribute = None
 
 # Fill in to produce a time series of CSR for a chosen segment
 CSR_series = False
-segment = None
+CSR_segment = None
 
 # Do not edit
 inst = Visualizations.Visualizations(output_table, network, hydrograph)
 
 if CSR:
     inst.csr_integrate(CSR_start, CSR_end)
+
+if storage_plot:
+    inst.plot_storage(storage_segment)
 
 if store:
     inst.d_storage_atts(store_start, store_end)
@@ -42,4 +49,4 @@ if date_fig:
     inst.date_fig(time_step, attribute)
 
 if CSR_series:
-    inst.plot_csr_time_series(segment)
+    inst.plot_csr_time_series(CSR_segment)
