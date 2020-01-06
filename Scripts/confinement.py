@@ -32,6 +32,10 @@ class Confinement:
         dif = channel.difference(inters1)
         inters = channel.intersection(inters1)
 
+        if dif.type == 'Polygon':
+            if dif.exterior is None:
+                return 0
+
         if inters.area == 0.:
             return 1
 

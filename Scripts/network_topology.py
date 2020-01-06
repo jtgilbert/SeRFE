@@ -358,6 +358,18 @@ class TopologyTools:
         else:
             return None
 
+    def get_next_segment(self, current_segment):
+        ds_rid = self.network.loc[current_segment, 'rid_ds']
+
+        if ds_rid != '0':
+            for i in self.network.index:
+                if self.network.loc[i, 'rid'] == ds_rid:
+                    next_segment = i
+        else:
+            next_segment = None
+
+        return next_segment
+
     def get_next_chain(self, current_segment):
         """
         Find the next chain in the network

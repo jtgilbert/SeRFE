@@ -58,12 +58,12 @@ class Disturbances:
             for x in range(len(segid)):
                 da = self.network.loc[segid[x], 'Drain_Area']
                 self.network.loc[segid[x], 'eff_DA'] = 0
-                ds_segs = self.topo.find_all_ds(segid[x])
-                for y in range(len(ds_segs)):
-                    # if self.network.loc[ds_segs[y], 'eff_DA'] == self.network.loc[ds_segs[y], 'Drain_Area']: doesn't solve for ds of two dams on dif streams
-                    self.network.loc[ds_segs[y], 'eff_DA'] = self.network.loc[ds_segs[y], 'eff_DA'] - da
-                    #else:
-                    #    pass
+                ds_seg = self.topo.get_next_segment(segid[x])
+                while ds_seg is not None:
+                    self.network.loc[ds_seg, 'eff_DA'] = self.network.loc[ds_seg, 'eff_DA'] - da
+                    ds_seg = self.topo.get_next_segment(ds_seg)
+                    if ds_seg in segid:
+                        ds_seg = None
 
         if new_denude is not None:
             for x in range(len(segid)):
@@ -91,24 +91,24 @@ class Disturbances:
         print('updating direct drainage area')
         # add directly contributing DA to each network segment
         for i in self.network.index:
-            us_seg = self.topo.find_us_seg(i)
-            us_seg2 = self.topo.find_us_seg2(i)
-            if us_seg is not None:
-                da1 = self.network.loc[us_seg, 'eff_DA']
-                if us_seg2 is not None:
-                    da2 = self.network.loc[us_seg2, 'eff_DA']
-                    us_da = da1 + da2
-                    dda = self.network.loc[i, 'eff_DA'] - us_da
+            if self.network.loc[i, 'eff_DA'] != 0.:
+                us_seg = self.topo.find_us_seg(i)
+                us_seg2 = self.topo.find_us_seg2(i)
+                if us_seg is not None:
+                    da1 = self.network.loc[us_seg, 'eff_DA']
+                    if us_seg2 is not None:
+                        da2 = self.network.loc[us_seg2, 'eff_DA']
+                        us_da = da1 + da2
+                        dda = self.network.loc[i, 'eff_DA'] - us_da
+                    else:
+                        dda = self.network.loc[i, 'eff_DA'] - da1
+
                 else:
-                    dda = self.network.loc[i, 'eff_DA'] - da1
-
+                    dda = self.network.loc[i, 'eff_DA']
             else:
-                dda = self.network.loc[i, 'eff_DA']
+                dda = 0.01
 
-            if dda >= 0:
-                self.network.loc[i, 'direct_DA'] = dda
-            else:
-                self.network.loc[i, 'direct_DA'] = self.network.loc[i, 'eff_DA']
+            self.network.loc[i, 'direct_DA'] = dda
 
         self.network.to_file(self.streams)
 
