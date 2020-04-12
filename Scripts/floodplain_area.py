@@ -16,6 +16,9 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
     dn = gpd.read_file(network)
     fp = gpd.read_file(floodplain)
 
+    if len(fp.index) > 1:
+        raise Exception('valley/floodplain polygon must be merged into single feature')
+
     atts = ['Drain_Area', 'w_bf', 'Length_m']
     for att in atts:
         if att not in dn.columns:
@@ -28,7 +31,7 @@ def extract_floodplain_area(network, floodplain, lg_buf=1500, med_buf=500, sm_bu
         da = seg['Drain_Area']
         geom = seg['geometry']
 
-        print('segment ', i, ' of ', len(dn.index))
+        print('segment ', i+1, ' of ', len(dn.index))
 
         ept1 = (geom.boundary[0].xy[0][0], geom.boundary[0].xy[1][0])
         ept2 = (geom.boundary[1].xy[0][0], geom.boundary[1].xy[1][0])

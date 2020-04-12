@@ -318,6 +318,16 @@ class TopologyTools:
 
         return ds_list
 
+    def find_all_us2(self, segid):
+
+        us_segs = []
+
+        for i in self.network.index:
+            if segid in self.find_all_ds(i):
+                us_segs.append(i)
+
+        return us_segs
+
     def get_next_reach(self, current_segment):
         """
         Find the next reach in a chain downstream of a chosen segment

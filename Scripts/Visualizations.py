@@ -1,5 +1,6 @@
 # imports
 import matplotlib.pyplot as plt
+from matplotlib import ticker
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -32,16 +33,19 @@ class Visualizations:
         series_max = series_max[0:-1]
 
         fig, ax = plt.subplots(figsize=(10, 7))
-        ax.plot(self.df.index.levels[0][:-1], series_min, linewidth=1, linestyle=':', color='blue', label='Minimum')
-        ax.plot(self.df.index.levels[0][:-1], series_mid, linewidth=3, color='blue', label='Median')
-        ax.plot(self.df.index.levels[0][:-1], series_max, linewidth=1, linestyle='dashdot', color='blue', label='Maximum')
+        ax.plot(self.df.index.levels[0][:-1], series_min, linewidth=1, linestyle=':', color='blue', label='Lower tranpsort')
+        ax.plot(self.df.index.levels[0][:-1], series_mid, linewidth=3, color='blue', label='CSR')
+        ax.plot(self.df.index.levels[0][:-1], series_max, linewidth=1, linestyle='dashdot', color='blue', label='Higher transport')
         ax.tick_params(axis='both', which='major', labelsize=16)
         ax.axhline(1, linestyle='dashed', color='k')
+        ax.axhline(np.max(series_mid), linestyle=':', color='k')
         ax.set_xlabel('Time Step', fontsize=20)
         ax.set_ylabel('CSR', fontsize=20)
         ax.set_title("Segment {0}".format(seg), fontsize=20, fontweight='bold')
         ax.legend(fontsize=16)
-        plt.yscale('log')
+        ax.set_yscale('log')
+        plt.minorticks_on()
+        plt.text(50, (np.max(series_mid))-5, 'CSR max: {0:.2f}'.format(np.max(series_mid)), fontsize=16)
         plt.show()
 
         return
@@ -72,6 +76,7 @@ class Visualizations:
         series_mid2 = []
         series_max1 = []
         series_max2 = []
+        q_series = []
         for x in self.df.index.levels[0]:
             val_min1 = self.df.loc[(x, seg), 'Store_tot_min']
             val_min2 = self.df.loc[(x, seg), 'Store_chan_min']
@@ -79,18 +84,21 @@ class Visualizations:
             val_mid2 = self.df.loc[(x, seg), 'Store_chan_mid']
             val_max1 = self.df.loc[(x, seg), 'Store_tot_max']
             val_max2 = self.df.loc[(x, seg), 'Store_chan_max']
+            q_val = self.df.loc[(x, seg), 'Q']
             series_min1.append(val_min1)
             series_min2.append(val_min2)
             series_mid1.append(val_mid1)
             series_mid2.append(val_mid2)
             series_max1.append(val_max1)
             series_max2.append(val_max2)
+            q_series.append(q_val)
         series_min1 = series_min1[0:-1]
         series_min2 = series_min2[0:-1]
         series_mid1 = series_mid1[0:-1]
         series_mid2 = series_mid2[0:-1]
         series_max1 = series_max1[0:-1]
         series_max2 = series_max2[0:-1]
+        q_series = q_series[0:-1]
 
         series_fp_min = []
         series_fp_mid = []
@@ -103,19 +111,25 @@ class Visualizations:
             series_fp_mid.append(val_fp_mid)
             series_fp_max.append(val_fp_max)
 
-        fig, ax = plt.subplots(figsize=(11, 6))
-        ax.plot(self.df.index.levels[0][0:-1], series_mid1, linewidth=3, color='g', label='Total storage')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_mid, linewidth=3, color='c', label='Floodplain storage')
-        ax.plot(self.df.index.levels[0][0:-1], series_min1, linestyle=':', linewidth=1, color='g', label='Lower transport')
-        ax.plot(self.df.index.levels[0][0:-1], series_max1, linestyle='dashdot', linewidth=1, color='g', label='Higher transport')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_min, linestyle=':', linewidth=1, color='c', label='_nolabel_')
-        ax.plot(self.df.index.levels[0][0:-1], series_fp_max, linestyle='dashdot', linewidth=1, color='c', label='_nolabel_')
-        ax.tick_params(axis='both', which='major', labelsize=16)
-        ax.axhline(series_mid1[0], linestyle='dashed', color='k', label='Initial value')
-        ax.set_xlabel('Time Step', fontsize=20)
-        ax.set_ylabel('Storage (tonnes)', fontsize=20)
-        ax.set_title("Segment {0}: Sediment Storage".format(seg), fontsize=20, fontweight='bold')
-        ax.legend(fontsize=16)
+        fig, ax = plt.subplots(2, 1, figsize=(12,20))
+        ax[0].plot(self.df.index.levels[0][0:-1], series_mid1, linewidth=3, color='g', label='Total storage')
+        ax[0].plot(self.df.index.levels[0][0:-1], series_fp_mid, linewidth=3, color='c', label='Floodplain storage')
+        ax[0].plot(self.df.index.levels[0][0:-1], series_min1, linestyle=':', linewidth=1, color='g', label='Lower transport')
+        ax[0].plot(self.df.index.levels[0][0:-1], series_max1, linestyle='dashdot', linewidth=1, color='g', label='Higher transport')
+        ax[0].plot(self.df.index.levels[0][0:-1], series_fp_min, linestyle=':', linewidth=1, color='c', label='_nolabel_')
+        ax[0].plot(self.df.index.levels[0][0:-1], series_fp_max, linestyle='dashdot', linewidth=1, color='c', label='_nolabel_')
+        ax[0].tick_params(axis='both', which='major', labelsize=16)
+        ax[0].axhline(series_mid1[0], linestyle='dashed', color='k', label='Initial value')
+        ax[0].set_xlabel('Time Step', fontsize=20)
+        ax[0].set_ylabel('Storage (tonnes)', fontsize=20)
+        ax[0].set_title("Segment {0}: Sediment Storage".format(seg), fontsize=20, fontweight='bold')
+        ax[0].legend(fontsize=16)
+        ax[1].plot(self.df.index.levels[0][0:-1], q_series, linewidth=5, color='k')
+        ax[1].set_xlabel('Time Step', fontsize=16)
+        ax[1].set_ylabel('Discharge (cms)', fontsize=16)
+        ax[1].tick_params(axis='both', which='major', labelsize=16)
+        #ax[1].set_title("Segment {0}: Discharge".format(seg), fontsize=20, fontweight='bold')
+        fig.tight_layout(pad=8)
         plt.show()
 
         return
@@ -186,8 +200,16 @@ class Visualizations:
         for i in self.network.index:
             fp_start = self.df.loc[(start, i), 'Store_tot_mid']-self.df.loc[(start, i), 'Store_chan_mid']
             fp_end = self.df.loc[(end, i), 'Store_tot_mid']-self.df.loc[(end, i), 'Store_chan_mid']
-            self.network.loc[i, 'd_stor_fp'] = fp_end - fp_start
-            self.network.loc[i, 'd_stor_ch'] = self.df.loc[(end, i), 'Store_chan_mid']-self.df.loc[(start, i), 'Store_chan_mid']
+            fp_start_min = self.df.loc[(start, i), 'Store_tot_min'] - self.df.loc[(start, i), 'Store_chan_min']
+            fp_end_min = self.df.loc[(end, i), 'Store_tot_min'] - self.df.loc[(end, i), 'Store_chan_min']
+            fp_start_max = self.df.loc[(start, i), 'Store_tot_max'] - self.df.loc[(start, i), 'Store_chan_max']
+            fp_end_max = self.df.loc[(end, i), 'Store_tot_max'] - self.df.loc[(end, i), 'Store_chan_max']
+            self.network.loc[i, 'd_fp_min'] = fp_end_min - fp_start_min
+            self.network.loc[i, 'd_fp_mid'] = fp_end - fp_start
+            self.network.loc[i, 'd_fp_max'] = fp_end_max - fp_start_max
+            self.network.loc[i, 'd_ch_min'] = self.df.loc[(end, i), 'Store_chan_min'] - self.df.loc[(start, i), 'Store_chan_min']
+            self.network.loc[i, 'd_ch_mid'] = self.df.loc[(end, i), 'Store_chan_mid'] - self.df.loc[(start, i), 'Store_chan_mid']
+            self.network.loc[i, 'd_ch_max'] = self.df.loc[(end, i), 'Store_chan_max'] - self.df.loc[(start, i), 'Store_chan_max']
         self.network.to_file(self.streams)
 
     def csr_integrate(self, start, end):
@@ -266,20 +288,3 @@ class Stats:
 
         return np.mean(series)
 
-
-#inst = Visualizations('/home/jordan/Documents/Geoscience/SeRFE/SC/outputs/sc_serfe_3.csv', '/home/jordan/Documents/Geoscience/SeRFE/SC/outputs/SC_serfe_out_3.shp', '/home/jordan/Documents/Geoscience/SeRFE/SC/SC_hydrographs_new.csv')
-#inst.sum_plot('Qs')
-#inst.sum_plot('Qs_out')
-#inst.delta_storage_plot(260, 305)
-#inst.d_storage_atts(260, 305)
-#inst.csr_integrate(260, 305)
-#inst.csr_integrate2(260, 305)
-#inst.plot_csr_time_series(78)
-#inst.plot_storage(30)
-#inst.plot_time_series(78, 'Q')
-#inst.date_fig(293, 'Q', save=True)
-#inst.integrate()
-
-#inst2 = Stats('/home/jordan/Documents/piru_output.csv')
-#print inst2.seg_mean(17, 'CSR')
-#print inst2.seg_sum(487, 'CSR')/365

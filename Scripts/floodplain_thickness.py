@@ -19,15 +19,16 @@ def est_fp_thickness(dn, valley, dem, min_thickness=0.2, max_thickness=1.5):
     vb = gpd.read_file(valley)
 
     for i in network.index:
-        print('segment ', i, ' of ', len(network))
+        print('segment ', i+1, ' of ', len(network))
         if network.loc[i, 'confine'] < 1:
+            low_flow_buf = network.loc[i, 'geometry'].buffer((network.loc[i, 'w_bf']/2)/2, cap_style=2)
             chan_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']/2, cap_style=2)
-            lg_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf']*1.5, cap_style=2)
+            lg_buf = network.loc[i, 'geometry'].buffer(network.loc[i, 'w_bf'], cap_style=2)
             vb_buf = vb.intersection(lg_buf)
 
             fp_buf = vb_buf.difference(chan_buf)
 
-            low_zs = zonal_stats(chan_buf, dem, stats='mean')
+            low_zs = zonal_stats(low_flow_buf, dem, stats='mean')
             fp_zs = zonal_stats(fp_buf, dem, stats='mean')
 
             chan_elev = low_zs[0].get('mean')

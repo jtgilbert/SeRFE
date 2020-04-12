@@ -48,9 +48,14 @@ class Disturbances:
             self.network['dist_g_sh'] = -9999
             self.network['dist_g_sc'] = -9999
 
+        if 'dist_d50' in self.network.columns:
+            pass
+        else:
+            self.network['dist_d50'] = -9999
+
         self.network.to_file(self.streams)
 
-    def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None):
+    def add_disturbance(self, segid, new_da=False, dist_start=None, dist_end=None, new_denude=None, dist_d50=None):
 
         print('adding disturbances')
 
@@ -81,6 +86,10 @@ class Disturbances:
                 else:
                     self.network.loc[segid[x], 'dist_g_sh'] = new_denude[0][0]
                     self.network.loc[segid[x], 'dist_g_sc'] = new_denude[0][1]
+                if len(dist_d50) > 1:
+                    self.network.loc[segid[x], 'dist_d50'] = dist_d50[x]
+                else:
+                    self.network['dist_d50'] = dist_d50[0]
 
         self.network.to_file(self.streams)
 

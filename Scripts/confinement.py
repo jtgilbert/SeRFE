@@ -96,7 +96,7 @@ class Confinement:
     def confinement(self):
 
         for i in self.network.index:
-            print('segment ', i, ' of ', len(self.network.index))
+            print('segment ', i+1, ' of ', len(self.network.index))
             seg = self.network.loc[i, 'geometry']
             buf_width = (self.network.loc[i, 'w_bf']/2) + (self.network.loc[i, 'w_bf']*self.exag)
 

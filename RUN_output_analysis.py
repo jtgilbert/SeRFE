@@ -26,7 +26,7 @@ store_end = None
 # Fill in for to add an attribute for a certain time step
 date_fig = False
 time_step = None
-attribute = None
+attribute = ''
 
 # Fill in to produce a time series of CSR for a chosen segment
 CSR_series = False
