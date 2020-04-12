@@ -26,6 +26,8 @@ dist_end = []  # time step to end disturbance. This can be a single value if it 
 new_denude = [[]] # gamma shape and scale values for new denudation/erosion rates from disturbance. Can be single
                       # values for all disturbance (i.e. [shape, scale]) or a list of values for each
                       # segment in the segment ID list (i.e. [shape, scale],[shape, scale]... for each segment).
+dist_d50 = []  # a single value or list of values for each disturbed segment (in the same order) of the median grain
+               # size of the sediment the channel receives from the disturbance.
 
 #  run disturbance - do not modify
 dist = disturbance.Disturbances(network)
@@ -42,7 +44,7 @@ if len(segid2) > 0:
         if len(segid2) != len(new_denude):
             raise Exception('segment ID list and new denude list have different lengths')
 
-    dist.add_disturbance(segid2, dist_start=dist_start, dist_end=dist_end, new_denude=new_denude)
+    dist.add_disturbance(segid2, dist_start=dist_start, dist_end=dist_end, new_denude=new_denude, dist_d50=dist_d50)
 
 dist2 = disturbance.Disturbances(network)
 dist2.update_direct_da()
